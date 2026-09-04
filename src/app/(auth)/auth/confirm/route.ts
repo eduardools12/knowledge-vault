@@ -8,11 +8,23 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 /**
  * Landing point for every link Supabase sends by email.
  *
- * The email template passes a single-use `token_hash`, which is exchanged here
- * for a real session. Route Handlers can write cookies, which Server Components
- * cannot, so this exchange has to happen at this layer.
+ * The link carries a single-use credential which is exchanged here for a real
+ * session. Route Handlers can write cookies, which Server Components cannot, so
+ * the exchange has to happen at this layer.
  *
- * Configure the Supabase email templates to point at:
+ * Two credential shapes are accepted, because the shape depends on how the
+ * email template is written:
+ *
+ *   token_hash + type   the recommended template, using {{ .TokenHash }}
+ *   code                what Supabase's *default* template produces, since
+ *                       @supabase/ssr uses the PKCE flow
+ *
+ * Handling both is deliberate. With only the first, forgetting to edit the
+ * email templates turns every confirmation link into "link inválido" — a
+ * failure that looks like a bug in the app and is miserable to diagnose from
+ * the outside. Preferred template, in Supabase → Authentication → Email
+ * Templates:
+ *
  *   {{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type={{ .EmailActionType }}
  */
 
@@ -21,7 +33,13 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
  * parameter straight to `EmailOtpType` would let a crafted link drive a
  * verification flow the app never intended to support.
  */
-const ALLOWED_OTP_TYPES = new Set<EmailOtpType>(["signup", "recovery", "email_change", "email", "invite"]);
+const ALLOWED_OTP_TYPES = new Set<EmailOtpType>([
+  "signup",
+  "recovery",
+  "email_change",
+  "email",
+  "invite",
+]);
 
 function parseOtpType(value: string | null): EmailOtpType | null {
   if (value && ALLOWED_OTP_TYPES.has(value as EmailOtpType)) {
@@ -33,22 +51,45 @@ function parseOtpType(value: string | null): EmailOtpType | null {
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const tokenHash = searchParams.get("token_hash");
-  const type = parseOtpType(searchParams.get("type"));
   const next = safeRedirectPath(searchParams.get("next"));
 
-  if (!tokenHash || !type) {
-    redirect(`${ROUTES.authError}?reason=invalid_link`);
-  }
+  const tokenHash = searchParams.get("token_hash");
+  const code = searchParams.get("code");
+
+  const invalidLink = `${ROUTES.authError}?reason=invalid_link`;
+  // Expired and already-used links are the common failure here, and both mean
+  // the same thing to the user: request a fresh email.
+  const expiredLink = `${ROUTES.authError}?reason=expired_link`;
 
   const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.auth.verifyOtp({ type, token_hash: tokenHash });
 
-  if (error) {
-    // Expired and already-used links are the common case here, and both mean
-    // the user needs to request a fresh email.
-    redirect(`${ROUTES.authError}?reason=expired_link`);
+  if (tokenHash) {
+    const type = parseOtpType(searchParams.get("type"));
+
+    // A `token_hash` without a recognised `type` is not a link this
+    // application issued, so it is rejected rather than guessed at.
+    if (!type) {
+      redirect(invalidLink);
+    }
+
+    const { error } = await supabase.auth.verifyOtp({ type, token_hash: tokenHash });
+
+    if (error) {
+      redirect(expiredLink);
+    }
+
+    redirect(next);
   }
 
-  redirect(next);
+  if (code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+
+    if (error) {
+      redirect(expiredLink);
+    }
+
+    redirect(next);
+  }
+
+  redirect(invalidLink);
 }
