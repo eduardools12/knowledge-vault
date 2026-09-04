@@ -30,12 +30,25 @@ export function formSuccess(message?: string): FormState {
  *
  * Returns a discriminated union so the caller is forced to handle the failure
  * branch before touching the parsed data.
+ *
+ * `arrayFields` names the inputs that may repeat — a group of checkboxes, for
+ * instance. They are read with `getAll`, so a field stays an array even when a
+ * single box is ticked. Without naming them, `Object.fromEntries` keeps only
+ * the last value and a multi-select silently submits one item.
  */
 export function parseFormData<TSchema extends z.ZodType>(
   schema: TSchema,
   formData: FormData,
+  options: { arrayFields?: readonly string[] } = {},
 ): { ok: true; data: z.infer<TSchema> } | { ok: false; state: FormState } {
-  const raw = Object.fromEntries(formData.entries());
+  const raw: Record<string, FormDataEntryValue | FormDataEntryValue[]> = Object.fromEntries(
+    formData.entries(),
+  );
+
+  for (const field of options.arrayFields ?? []) {
+    raw[field] = formData.getAll(field);
+  }
+
   const result = schema.safeParse(raw);
 
   if (!result.success) {

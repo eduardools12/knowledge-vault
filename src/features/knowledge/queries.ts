@@ -5,8 +5,9 @@ import { cache } from "react";
 import { sanitizeDocument, type KnowledgeDocument } from "@/features/knowledge/document";
 import { PAGE_SIZE, type KnowledgeFilters } from "@/features/knowledge/schemas";
 import { requireUser } from "@/lib/auth/dal";
-import type { KnowledgeLevel, KnowledgeStatus } from "@/lib/domain";
+import type { KnowledgeLevel, KnowledgeStatus, SourceType } from "@/lib/domain";
 import { toPrefixTsQuery } from "@/lib/search";
+import { isUuid } from "@/lib/uuid";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 /**
@@ -18,6 +19,9 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
  * the same job.
  */
 
+export type KnowledgeTag = { id: string; name: string; color: string | null };
+export type LinkedSource = { id: string; title: string; type: SourceType };
+
 export type KnowledgeSummary = {
   id: string;
   title: string;
@@ -27,6 +31,7 @@ export type KnowledgeSummary = {
   createdAt: string;
   updatedAt: string;
   area: { id: string; name: string; color: string | null } | null;
+  tags: KnowledgeTag[];
 };
 
 export type KnowledgeDetail = KnowledgeSummary & {
@@ -36,12 +41,16 @@ export type KnowledgeDetail = KnowledgeSummary & {
   lastReviewedAt: string | null;
   nextReviewAt: string | null;
   reviewCount: number;
+  sources: LinkedSource[];
 };
 
 const LIST_SELECT =
-  "id, title, summary, level, status, created_at, updated_at, area:areas!knowledge_area_fk(id, name, color)";
+  "id, title, summary, level, status, created_at, updated_at, area:areas!knowledge_area_fk(id, name, color), knowledge_tags(tags(id, name, color))";
 
-const DETAIL_SELECT = `${LIST_SELECT}, content, content_text, archived_at, last_reviewed_at, next_review_at, review_count`;
+// A separate specifier from `LIST_SELECT`'s `knowledge_tags(tags(...))`, plus
+// one more relation. PostgREST resolves one specifier per relation name, so
+// this stays additive rather than redefining `knowledge_tags`.
+const DETAIL_SELECT = `${LIST_SELECT}, content, content_text, archived_at, last_reviewed_at, next_review_at, review_count, knowledge_sources(sources(id, title, type))`;
 
 export type KnowledgeListResult = {
   items: KnowledgeSummary[];
@@ -68,6 +77,10 @@ export async function listKnowledge(filters: KnowledgeFilters): Promise<Knowledg
 
   if (filters.level) {
     query = query.eq("level", filters.level);
+  }
+
+  if (filters.area) {
+    query = query.eq("area_id", filters.area);
   }
 
   const tsQuery = filters.q ? toPrefixTsQuery(filters.q) : null;
@@ -129,17 +142,33 @@ export const getKnowledgeById = cache(async (id: string): Promise<KnowledgeDetai
     return null;
   }
 
+  const row = data as ListRow & {
+    content: KnowledgeDocument;
+    content_text: string;
+    archived_at: string | null;
+    last_reviewed_at: string | null;
+    next_review_at: string | null;
+    review_count: number;
+    knowledge_sources: { sources: LinkedSource | null }[];
+  };
+
   return {
-    ...toSummary(data),
+    ...toSummary(row),
     // Sanitised on the way out as well as on the way in. Rows written before a
     // schema change — or by a future importer — must not be able to render
     // something the current schema would reject.
-    content: sanitizeDocument(data.content),
-    contentText: data.content_text,
-    archivedAt: data.archived_at,
-    lastReviewedAt: data.last_reviewed_at,
-    nextReviewAt: data.next_review_at,
-    reviewCount: data.review_count,
+    content: sanitizeDocument(row.content),
+    contentText: row.content_text,
+    archivedAt: row.archived_at,
+    lastReviewedAt: row.last_reviewed_at,
+    nextReviewAt: row.next_review_at,
+    reviewCount: row.review_count,
+    // The join row survives even if RLS or a race filters the embedded source
+    // out, so the filter is what keeps a broken row from rendering as a link
+    // to nowhere.
+    sources: (row.knowledge_sources ?? [])
+      .map((link) => link.sources)
+      .filter((source): source is LinkedSource => source !== null),
   };
 });
 
@@ -152,6 +181,7 @@ type ListRow = {
   created_at: string;
   updated_at: string;
   area: { id: string; name: string; color: string | null } | null;
+  knowledge_tags: { tags: KnowledgeTag | null }[];
 };
 
 function toSummary(row: ListRow): KnowledgeSummary {
@@ -164,11 +194,10 @@ function toSummary(row: ListRow): KnowledgeSummary {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     area: row.area,
+    // The join row survives even if the tag embed comes back null, so the
+    // filter is what keeps a broken row from rendering as an empty badge.
+    tags: (row.knowledge_tags ?? [])
+      .map((link) => link.tags)
+      .filter((tag): tag is KnowledgeTag => tag !== null),
   };
-}
-
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-function isUuid(value: string): boolean {
-  return UUID_PATTERN.test(value);
 }

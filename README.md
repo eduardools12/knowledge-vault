@@ -12,9 +12,9 @@ capturar → organizar → compreender → relacionar → consultar → aplicar
 
 ## Estado atual
 
-**Etapas 1 a 3 concluídas** — arquitetura, banco, autenticação, casca da
-aplicação, dashboard e o CRUD de conhecimentos com editor rico, tudo verificado
-ponta a ponta no navegador.
+**Etapas 1 a 4 concluídas** — arquitetura, banco, autenticação, casca da
+aplicação, dashboard, CRUD de conhecimentos com editor rico, e áreas, tags e
+fontes com upload de arquivo, tudo verificado ponta a ponta no navegador.
 
 O banco já contempla o produto inteiro (grafo, revisão espaçada, embeddings,
 projetos), mesmo que a interface ainda cubra pouco dele. Isso é intencional:
@@ -57,7 +57,7 @@ cp .env.example .env.local
 ```
 
 > O projeto Supabase `knowledge-vault` (região `sa-east-1`) já existe e está com
-> as 9 migrações aplicadas. O `.env.local` da máquina onde foi feito o setup já
+> as 12 migrações aplicadas. O `.env.local` da máquina onde foi feito o setup já
 > está preenchido; em outra máquina, copie os valores do dashboard.
 
 Para aplicar migrações novas a partir daqui:
@@ -107,14 +107,20 @@ src/
 │   └── layout.tsx         Fontes, tema e providers globais
 ├── components/
 │   ├── ui/                Primitivas do shadcn/ui
-│   ├── forms/             Campo, alerta e botão de submit acessíveis
-│   ├── common/            Cabeçalho de página, estado vazio, placeholder
+│   ├── forms/             Campo, alerta, cor e botão de submit acessíveis
+│   ├── common/            Cabeçalho de página, estado vazio, paginação
 │   ├── knowledge/         Indicador de nível de maturidade
+│   ├── areas/             Seletor de área (compartilhado por área e conhecimento)
+│   ├── tags/              Badge e seletor de tags (checkbox)
+│   ├── sources/           Seletor de fontes (checkbox)
 │   └── layout/            Sidebar, navegação mobile, menu de usuário
 ├── features/
 │   ├── auth/              Server Actions e schemas de validação
 │   ├── dashboard/         Consultas, insights e componentes do dashboard
-│   └── knowledge/         CRUD, editor, sanitização do documento e busca
+│   ├── knowledge/         CRUD, editor, sanitização do documento e busca
+│   ├── areas/             CRUD, árvore e guarda de ciclo da hierarquia
+│   ├── tags/              CRUD e criação rápida em lote
+│   └── sources/           CRUD, upload direto ao Storage e caminho assinado
 ├── lib/
 │   ├── auth/dal.ts        Data Access Layer — checagem autoritativa de sessão
 │   ├── supabase/          Clientes de browser, servidor e proxy
@@ -122,6 +128,8 @@ src/
 │   ├── routes.ts          Rotas e classificação público/privado
 │   ├── navigation.ts      Itens da sidebar e estado de item ativo
 │   ├── search.ts          Conversão da busca em tsquery de prefixo
+│   ├── slug.ts            Geração de slug com suporte a acentuação
+│   ├── palette.ts         Paleta fixa de cores para áreas e tags
 │   ├── dates.ts           Datas relativas em pt-BR
 │   ├── env.ts             Validação das variáveis de ambiente
 │   └── forms.ts           Contrato compartilhado dos formulários

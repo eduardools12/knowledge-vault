@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useActionState } from "react";
 
+import { AreaSelectField, type AreaOption } from "@/components/areas/area-select-field";
 import { Field } from "@/components/forms/field";
 import { FormAlert } from "@/components/forms/form-alert";
 import { FormField } from "@/components/forms/form-field";
@@ -57,12 +58,19 @@ const STATUS_ITEMS: Record<string, string> = {
 export function KnowledgeForm({
   action,
   knowledge,
+  areaOptions,
   submitLabel,
+  /** Rendered by the page, because `TagPicker` and `SourcePicker` are Server Components. */
+  tagPicker,
+  sourcePicker,
 }: {
   action: KnowledgeAction;
   /** Absent when creating. */
   knowledge?: KnowledgeDetail;
+  areaOptions: AreaOption[];
   submitLabel: string;
+  tagPicker: React.ReactNode;
+  sourcePicker: React.ReactNode;
 }) {
   const [state, formAction] = useActionState(action, IDLE_FORM_STATE);
 
@@ -153,6 +161,27 @@ export function KnowledgeForm({
           )}
         </Field>
       </div>
+
+      <AreaSelectField
+        name="areaId"
+        label="Área"
+        hint="Opcional. A grande categoria em que este conhecimento se encaixa."
+        options={areaOptions}
+        defaultValue={knowledge?.area?.id}
+        errors={state.fieldErrors?.areaId}
+      />
+
+      <Field label="Tags" errors={state.fieldErrors?.tagIds}>
+        {() => <>{tagPicker}</>}
+      </Field>
+
+      <Field
+        label="Fontes"
+        hint="De onde este conhecimento veio, se houver uma referência específica."
+        errors={state.fieldErrors?.sourceIds}
+      >
+        {() => <>{sourcePicker}</>}
+      </Field>
 
       <Field label="Conteúdo" errors={state.fieldErrors?.content}>
         {(field) => (

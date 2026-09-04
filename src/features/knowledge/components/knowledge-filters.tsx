@@ -1,7 +1,6 @@
 "use client";
 
 import { SearchIcon, XIcon } from "lucide-react";
-import type { ReadonlyURLSearchParams } from "next/navigation";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 
@@ -15,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { KNOWLEDGE_LEVEL_META, KNOWLEDGE_LEVELS, KNOWLEDGE_STATUS_LABELS } from "@/lib/domain";
+import { buildFilterHref, type FilterChanges } from "@/lib/filter-href";
 
 /** Sentinel for "no filter". A Base UI select item cannot carry an empty value. */
 const ANY = "__any__";
@@ -36,38 +36,6 @@ const STATUS_ITEMS: Record<string, string> = {
 
 const SEARCH_DEBOUNCE_MS = 300;
 
-type FilterChanges = Record<string, string | undefined>;
-
-/**
- * Builds the next URL from the current one.
- *
- * Pure and defined outside the component so the debounce effect can call it
- * without taking a function that is re-created on every render as a dependency.
- */
-function buildFilterHref(
-  pathname: string,
-  searchParams: URLSearchParams | ReadonlyURLSearchParams,
-  changes: FilterChanges,
-): string {
-  const params = new URLSearchParams(searchParams.toString());
-
-  for (const [key, value] of Object.entries(changes)) {
-    if (value) {
-      params.set(key, value);
-    } else {
-      params.delete(key);
-    }
-  }
-
-  // Any filter change invalidates the page number: page 3 of the old result set
-  // is usually empty in the new one.
-  params.delete("page");
-
-  const search = params.toString();
-
-  return search ? `${pathname}?${search}` : pathname;
-}
-
 /**
  * Search and filters for the knowledge list.
  *
@@ -80,10 +48,14 @@ export function KnowledgeFilters({
   defaultQuery,
   defaultLevel,
   defaultStatus,
+  defaultArea,
+  areas,
 }: {
   defaultQuery?: string;
   defaultLevel?: string;
   defaultStatus?: string;
+  defaultArea?: string;
+  areas: { id: string; name: string }[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -91,6 +63,11 @@ export function KnowledgeFilters({
   const [isPending, startTransition] = useTransition();
 
   const [query, setQuery] = useState(defaultQuery ?? "");
+
+  const areaItems: Record<string, string> = {
+    [ANY]: "Todas as áreas",
+    ...Object.fromEntries(areas.map((area) => [area.id, area.name])),
+  };
 
   function navigate(changes: FilterChanges) {
     // `replace`, not `push`: typing four letters should not leave four entries
@@ -119,7 +96,7 @@ export function KnowledgeFilters({
     return () => clearTimeout(timer);
   }, [query, defaultQuery, pathname, router, searchParams]);
 
-  const hasFilters = Boolean(query || defaultLevel || defaultStatus);
+  const hasFilters = Boolean(query || defaultLevel || defaultStatus || defaultArea);
 
   return (
     <div className="mb-6 flex flex-wrap items-center gap-3" data-pending={isPending || undefined}>
@@ -172,6 +149,25 @@ export function KnowledgeFilters({
         </SelectContent>
       </Select>
 
+      {areas.length > 0 ? (
+        <Select
+          items={areaItems}
+          value={defaultArea ?? ANY}
+          onValueChange={(value) => navigate({ area: value === ANY ? undefined : String(value) })}
+        >
+          <SelectTrigger className="w-40" aria-label="Filtrar por área">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.entries(areaItems).map(([value, label]) => (
+              <SelectItem key={value} value={value}>
+                {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : null}
+
       {hasFilters ? (
         <Button
           type="button"
@@ -179,7 +175,7 @@ export function KnowledgeFilters({
           size="sm"
           onClick={() => {
             setQuery("");
-            navigate({ q: undefined, level: undefined, status: undefined });
+            navigate({ q: undefined, level: undefined, status: undefined, area: undefined });
           }}
         >
           <XIcon className="size-4" aria-hidden="true" />

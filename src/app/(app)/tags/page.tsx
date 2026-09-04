@@ -1,24 +1,41 @@
 import { TagsIcon } from "lucide-react";
 import type { Metadata } from "next";
 
-import { StagePlaceholder } from "@/components/common/stage-placeholder";
+import { EmptyState } from "@/components/common/empty-state";
+import { PageHeader } from "@/components/common/page-header";
+import { TagQuickAdd } from "@/features/tags/components/tag-quick-add";
+import { TagRow } from "@/features/tags/components/tag-row";
+import { listTags } from "@/features/tags/queries";
 
 export const metadata: Metadata = {
   title: "Tags",
 };
 
-export default function TagsPage() {
+export default async function TagsPage() {
+  const tags = await listTags();
+
   return (
-    <StagePlaceholder
-      icon={TagsIcon}
-      title="Tags"
-      description="Rótulos específicos, transversais às áreas."
-      stage="Etapa 4"
-      willDo={[
-        "Criar e mesclar tags, com cor opcional",
-        "Marcar conhecimentos e fontes com as mesmas tags",
-        "Encontrar tudo que carrega uma tag, mesmo em áreas diferentes",
-      ]}
-    />
+    <>
+      <PageHeader
+        title="Tags"
+        description="Rótulos específicos, transversais às áreas. Um conhecimento pode ter várias."
+      />
+
+      <TagQuickAdd />
+
+      {tags.length === 0 ? (
+        <EmptyState
+          icon={TagsIcon}
+          title="Nenhuma tag ainda"
+          description="Tags cruzam as áreas: #dados serve tanto para uma nota de programação quanto para uma de futebol. Crie a primeira no formulário acima."
+        />
+      ) : (
+        <ul className="grid gap-px overflow-hidden rounded-lg border">
+          {tags.map((tag) => (
+            <TagRow key={tag.id} tag={tag} />
+          ))}
+        </ul>
+      )}
+    </>
   );
 }

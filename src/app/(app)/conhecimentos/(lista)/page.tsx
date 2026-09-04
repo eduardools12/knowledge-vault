@@ -5,9 +5,10 @@ import { Suspense } from "react";
 import { ButtonLink } from "@/components/common/button-link";
 import { EmptyState } from "@/components/common/empty-state";
 import { PageHeader } from "@/components/common/page-header";
+import { Pagination } from "@/components/common/pagination";
+import { listAreas } from "@/features/areas/queries";
 import { KnowledgeFilters } from "@/features/knowledge/components/knowledge-filters";
 import { KnowledgeListItem } from "@/features/knowledge/components/knowledge-list-item";
-import { Pagination } from "@/features/knowledge/components/pagination";
 import { listKnowledge } from "@/features/knowledge/queries";
 import { knowledgeFiltersSchema } from "@/features/knowledge/schemas";
 import { ROUTES } from "@/lib/routes";
@@ -26,10 +27,13 @@ export default async function KnowledgeListPage({
   // degrades to the unfiltered list instead of an error page.
   const filters = knowledgeFiltersSchema.parse(raw);
 
-  const { items, total, page, pageCount } = await listKnowledge(filters);
+  const [{ items, total, page, pageCount }, areas] = await Promise.all([
+    listKnowledge(filters),
+    listAreas(),
+  ]);
   const now = new Date();
 
-  const isFiltered = Boolean(filters.q || filters.level || filters.status);
+  const isFiltered = Boolean(filters.q || filters.level || filters.status || filters.area);
 
   function buildHref(nextPage: number): string {
     const params = new URLSearchParams();
@@ -37,6 +41,7 @@ export default async function KnowledgeListPage({
     if (filters.q) params.set("q", filters.q);
     if (filters.level) params.set("level", filters.level);
     if (filters.status) params.set("status", filters.status);
+    if (filters.area) params.set("area", filters.area);
     if (nextPage > 1) params.set("page", String(nextPage));
 
     const search = params.toString();
@@ -66,6 +71,8 @@ export default async function KnowledgeListPage({
           defaultQuery={filters.q}
           defaultLevel={filters.level}
           defaultStatus={filters.status}
+          defaultArea={filters.area}
+          areas={areas}
         />
       </Suspense>
 

@@ -20,7 +20,13 @@ export function FormField({
   label: string;
   errors?: string[];
   hint?: string;
-} & Omit<React.ComponentProps<typeof Input>, "name" | "id">) {
+  /**
+   * Forwarded to the underlying input. In React 19 `ref` is an ordinary prop
+   * on a function component, so no `forwardRef` wrapper is needed — callers
+   * that need to focus or reset the field can simply pass one.
+   */
+  ref?: React.Ref<HTMLInputElement>;
+} & Omit<React.ComponentProps<typeof Input>, "name" | "id" | "ref">) {
   return (
     <Field label={label} errors={errors} hint={hint} className={className}>
       {(field) => <Input name={name} {...field} {...inputProps} />}

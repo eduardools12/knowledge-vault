@@ -96,6 +96,32 @@ Um conhecimento não consegue apontar para a área de outra pessoa nem que o
 código da aplicação tente. Isso transforma uma classe inteira de bug de
 autorização em erro de constraint.
 
+### A armadilha do `ON DELETE SET NULL` composto
+
+Uma chave estrangeira composta com `ON DELETE SET NULL` zera **a tupla
+inteira**, não só a coluna que aponta para a linha apagada. Como toda FK aqui
+inclui `user_id`, e `user_id` é `NOT NULL` em todo lugar, declarar
+`on delete set null` numa FK composta garante uma violação de constraint no
+primeiro delete que a exercite — o próprio isolamento que a chave composta
+existe para garantir é o que a quebra.
+
+Isso passou despercebido na Etapa 1 porque nenhuma tabela com dependentes
+opcionais chegou a ser apagada com dependentes de verdade até a Etapa 4, quando
+excluir uma área com conhecimento vinculado começou a falhar com
+`null value in column "user_id" ... violates not-null constraint`.
+
+A correção, em `20260904001200_fix_composite_fk_set_null.sql`: a FK volta ao
+padrão (sem ação em cascata), e um trigger `BEFORE DELETE` zera só a coluna
+certa antes da exclusão prosseguir — a mesma técnica que `areas_prevent_cycle`
+já usava para uma regra que uma constraint comum não consegue expressar. Três
+FKs tinham esse desenho: `areas_parent_fk`, `knowledge_area_fk` e
+`inbox_items_knowledge_fk`. As demais usam `on delete cascade`, que não sofre
+disso — apagar a linha inteira não viola NOT NULL em coluna nenhuma.
+
+**Regra para o resto do projeto:** uma FK composta cujo papel é "opcional, vira
+NULL se o pai sumir" nunca leva `ON DELETE SET NULL` direto. Leva um trigger
+`BEFORE DELETE` que zera explicitamente a coluna não-tenant.
+
 ## Organização do código
 
 Três diretórios com papéis distintos:

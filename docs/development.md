@@ -101,6 +101,11 @@ Vitest, ambiente Node. A suíte cobre as funções puras e críticas:
   que separa um payload enviado à mão do HTML que o servidor vai renderizar.
 - `tests/search.test.ts` — conversão da busca em `tsquery`. Operador não
   escapado ali não dá resultado errado: dá erro de banco.
+- `tests/slug.test.ts` — geração de slug a partir de nome em português, com
+  acentuação, e a busca por um slug único quando o nome já existe.
+- `tests/area-tree.test.ts` — construção e achatamento da árvore de áreas, e
+  quais áreas um seletor de pai deve excluir. É a lógica que, se sutilmente
+  errada, não dá resultado errado — trava a página.
 - `tests/integration/rls.test.ts` — RLS pela API real (veja abaixo).
 
 ```bash
@@ -197,3 +202,7 @@ projeto correspondente.
 - Comentário explica **por que**, não o que o código já diz.
 - Server Action retorna erro; não lança.
 - Toda escrita passa por schema Zod no servidor.
+- Nenhuma FK composta com `ON DELETE SET NULL` — zera a tupla inteira,
+  `user_id` incluso. Use um trigger `BEFORE DELETE` que zera só a coluna certa.
+  Contexto completo em
+  [architecture.md](architecture.md#a-armadilha-do-on-delete-set-null-composto).

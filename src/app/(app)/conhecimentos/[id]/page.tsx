@@ -1,15 +1,18 @@
-import { ArchiveIcon } from "lucide-react";
+import { ArchiveIcon, BookMarkedIcon } from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { LevelIndicator } from "@/components/knowledge/level-indicator";
+import { TagBadge } from "@/components/tags/tag-badge";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { KnowledgeActions } from "@/features/knowledge/components/knowledge-actions";
 import { RenderedContent } from "@/features/knowledge/components/rendered-content";
 import { getKnowledgeById } from "@/features/knowledge/queries";
-import { KNOWLEDGE_LEVEL_META } from "@/lib/domain";
 import { formatDate, formatRelativeTime, toDateTimeAttribute } from "@/lib/dates";
+import { KNOWLEDGE_LEVEL_META, SOURCE_TYPE_LABELS } from "@/lib/domain";
+import { ROUTES } from "@/lib/routes";
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -62,6 +65,10 @@ export default async function KnowledgeDetailPage({ params }: PageProps) {
             <LevelIndicator level={knowledge.level} />
             <span className="text-muted-foreground">— {level.description}</span>
           </span>
+
+          {knowledge.tags.map((tag) => (
+            <TagBadge key={tag.id} name={tag.name} color={tag.color} />
+          ))}
         </div>
 
         <KnowledgeActions
@@ -74,6 +81,41 @@ export default async function KnowledgeDetailPage({ params }: PageProps) {
       <Separator />
 
       <RenderedContent document={knowledge.content} />
+
+      <Separator />
+
+      <section className="grid gap-3">
+        <h2 className="text-sm font-medium">
+          Fontes{knowledge.sources.length > 0 ? ` (${knowledge.sources.length})` : ""}
+        </h2>
+
+        {knowledge.sources.length === 0 ? (
+          <p className="text-muted-foreground text-sm">
+            Nenhuma fonte vinculada.{" "}
+            <Link href={`${ROUTES.knowledge}/${knowledge.id}/editar`} className="underline underline-offset-4">
+              Vincular ao editar
+            </Link>
+            .
+          </p>
+        ) : (
+          <ul className="grid gap-px overflow-hidden rounded-lg border">
+            {knowledge.sources.map((source) => (
+              <li key={source.id} className="bg-card">
+                <Link
+                  href={`${ROUTES.sources}/${source.id}`}
+                  className="hover:bg-accent/40 focus-visible:ring-ring flex items-center gap-2 px-4 py-2.5 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                >
+                  <BookMarkedIcon className="text-muted-foreground size-3.5 shrink-0" aria-hidden="true" />
+                  <span className="min-w-0 flex-1 truncate">{source.title}</span>
+                  <Badge variant="outline" className="shrink-0">
+                    {SOURCE_TYPE_LABELS[source.type]}
+                  </Badge>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <Separator />
 
@@ -106,12 +148,12 @@ export default async function KnowledgeDetailPage({ params }: PageProps) {
         </dl>
 
         {/*
-          Sources, related knowledge and projects belong on this page and arrive
-          with the stages that build them (4, 6 and 7). Saying so is more useful
+          Related knowledge and projects belong on this page too, and arrive
+          with the stages that build them (6 and 7). Saying so is more useful
           than an empty section that looks broken.
         */}
         <p className="text-muted-foreground text-xs">
-          Fontes, conhecimentos relacionados e projetos aparecem aqui a partir das Etapas 4, 6 e 7.
+          Conhecimentos relacionados e projetos aparecem aqui a partir das Etapas 6 e 7.
         </p>
       </footer>
     </article>

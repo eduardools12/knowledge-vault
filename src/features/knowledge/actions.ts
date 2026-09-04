@@ -27,13 +27,89 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
  *   found", which is also the right answer to give.
  */
 
+/** `tagIds` and `sourceIds` are checkbox groups, read with `getAll`. */
+const ARRAY_FIELDS = ["tagIds", "sourceIds"] as const;
+
 function revalidateKnowledge(id?: string) {
   revalidatePath(ROUTES.knowledge);
   // Counts and recent activity on the dashboard are now stale.
   revalidatePath(ROUTES.dashboard);
+  // A source's "conhecimentos que citam esta fonte" list is affected too.
+  revalidatePath(ROUTES.sources);
 
   if (id) {
     revalidatePath(`${ROUTES.knowledge}/${id}`);
+  }
+}
+
+/**
+ * Replaces a knowledge record's tag links.
+ *
+ * Delete-then-insert rather than a diff: the set is small, the operation runs
+ * once per save, and a diff would be more code for no observable difference.
+ * The composite foreign keys make a link to another user's tag impossible
+ * regardless.
+ */
+async function replaceKnowledgeTags(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  userId: string,
+  knowledgeId: string,
+  tagIds: string[],
+): Promise<void> {
+  const { error: deleteError } = await supabase
+    .from("knowledge_tags")
+    .delete()
+    .eq("knowledge_id", knowledgeId);
+
+  if (deleteError) {
+    console.error("[knowledge] could not clear tags:", deleteError.message);
+
+    return;
+  }
+
+  if (tagIds.length === 0) {
+    return;
+  }
+
+  const { error } = await supabase
+    .from("knowledge_tags")
+    .insert(tagIds.map((tagId) => ({ user_id: userId, knowledge_id: knowledgeId, tag_id: tagId })));
+
+  if (error) {
+    console.error("[knowledge] could not set tags:", error.message);
+  }
+}
+
+/** Same shape as `replaceKnowledgeTags`, for the source links. */
+async function replaceKnowledgeSources(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  userId: string,
+  knowledgeId: string,
+  sourceIds: string[],
+): Promise<void> {
+  const { error: deleteError } = await supabase
+    .from("knowledge_sources")
+    .delete()
+    .eq("knowledge_id", knowledgeId);
+
+  if (deleteError) {
+    console.error("[knowledge] could not clear sources:", deleteError.message);
+
+    return;
+  }
+
+  if (sourceIds.length === 0) {
+    return;
+  }
+
+  const { error } = await supabase
+    .from("knowledge_sources")
+    .insert(
+      sourceIds.map((sourceId) => ({ user_id: userId, knowledge_id: knowledgeId, source_id: sourceId })),
+    );
+
+  if (error) {
+    console.error("[knowledge] could not set sources:", error.message);
   }
 }
 
@@ -42,13 +118,13 @@ export async function createKnowledgeAction(
   formData: FormData,
 ): Promise<FormState> {
   const user = await requireUser();
-  const parsed = parseFormData(knowledgeFormSchema, formData);
+  const parsed = parseFormData(knowledgeFormSchema, formData, { arrayFields: ARRAY_FIELDS });
 
   if (!parsed.ok) {
     return parsed.state;
   }
 
-  const { title, summary, content, level, status } = parsed.data;
+  const { title, summary, content, level, status, areaId, tagIds, sourceIds } = parsed.data;
   const supabase = await createSupabaseServerClient();
 
   const { data, error } = await supabase
@@ -64,6 +140,7 @@ export async function createKnowledgeAction(
       content_text: documentToPlainText(content),
       level,
       status: status as "draft" | "active",
+      area_id: areaId,
     })
     .select("id")
     .single();
@@ -73,6 +150,11 @@ export async function createKnowledgeAction(
 
     return formError("Não foi possível salvar o conhecimento. Tente novamente.");
   }
+
+  await Promise.all([
+    replaceKnowledgeTags(supabase, user.id, data.id, tagIds),
+    replaceKnowledgeSources(supabase, user.id, data.id, sourceIds),
+  ]);
 
   revalidateKnowledge(data.id);
   redirect(`${ROUTES.knowledge}/${data.id}`);
@@ -84,7 +166,7 @@ export async function updateKnowledgeAction(
   _prevState: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  await requireUser();
+  const user = await requireUser();
 
   const id = idSchema.safeParse(formData.get("id"));
 
@@ -92,13 +174,13 @@ export async function updateKnowledgeAction(
     return formError("Registro inválido.");
   }
 
-  const parsed = parseFormData(knowledgeFormSchema, formData);
+  const parsed = parseFormData(knowledgeFormSchema, formData, { arrayFields: ARRAY_FIELDS });
 
   if (!parsed.ok) {
     return parsed.state;
   }
 
-  const { title, summary, content, level, status } = parsed.data;
+  const { title, summary, content, level, status, areaId, tagIds, sourceIds } = parsed.data;
   const supabase = await createSupabaseServerClient();
 
   const { data, error } = await supabase
@@ -110,6 +192,7 @@ export async function updateKnowledgeAction(
       content_text: documentToPlainText(content),
       level,
       status: status as "draft" | "active",
+      area_id: areaId,
     })
     .eq("id", id.data)
     .select("id")
@@ -125,6 +208,11 @@ export async function updateKnowledgeAction(
     // Filtered out by RLS, or already deleted. Both mean the same to the user.
     return formError("Este conhecimento não existe mais.");
   }
+
+  await Promise.all([
+    replaceKnowledgeTags(supabase, user.id, id.data, tagIds),
+    replaceKnowledgeSources(supabase, user.id, id.data, sourceIds),
+  ]);
 
   revalidateKnowledge(id.data);
   redirect(`${ROUTES.knowledge}/${id.data}`);

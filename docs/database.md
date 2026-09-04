@@ -15,6 +15,8 @@ ordem de nome de arquivo.
 | `...000800_storage.sql` | Bucket privado e políticas de arquivo |
 | `...000900_index_and_execute_hardening.sql` | Índices alinhados às FKs compostas; EXECUTE revogado das funções de trigger |
 | `...001000_dashboard_summary.sql` | Função de agregados do dashboard |
+| `...001100_area_hierarchy_guard.sql` | Trigger que impede ciclos na hierarquia de áreas |
+| `...001200_fix_composite_fk_set_null.sql` | Corrige `ON DELETE SET NULL` em FK composta (ver [architecture.md](architecture.md#a-armadilha-do-on-delete-set-null-composto)) |
 
 ## Modelo
 
@@ -55,6 +57,37 @@ A entidade central.
   nesta coluna, e uma constraint garante que as duas não divergem.
 - Campos de revisão (`last_reviewed_at`, `next_review_at`, `review_count`,
   `difficulty`, `confidence`) — cache de `reviews`, mantido por trigger.
+
+### `areas`
+
+Hierárquica via `parent_id`, auto-referenciando `(user_id, id)`. Duas garantias
+além da chave composta:
+
+- **Sem ciclos.** `areas_prevent_cycle` (trigger `BEFORE INSERT OR UPDATE OF
+  parent_id`) sobe a cadeia de ancestrais antes de aceitar um novo pai; achar a
+  própria linha no caminho rejeita a escrita. `src/features/areas/tree.ts`
+  espelha essa regra do lado da aplicação (`excludedParentIds`), para que o
+  seletor de área superior nunca ofereça uma opção que o banco recusaria — um
+  erro de "não é possível" depois de escolher é pior do que não oferecer a
+  escolha.
+- **Excluir não apaga o que está dentro.** `parent_id` de subáreas e `area_id`
+  de conhecimentos vinculados viram `NULL` (via trigger, não FK — ver
+  [architecture.md](architecture.md#a-armadilha-do-on-delete-set-null-composto)).
+  Uma área é um rótulo; removê-lo não remove o que foi rotulado.
+
+### `tags`
+
+Sem hierarquia — de propósito, para cruzar áreas livremente (`#dados` serve
+tanto a uma nota de programação quanto a uma de futebol). Excluir uma tag
+remove os vínculos em `knowledge_tags` e `source_tags` (`on delete cascade`,
+que aqui não tem o problema acima: a linha de vínculo inteira desaparece, não
+uma coluna dela).
+
+### `sources`
+
+`storage_path` aponta para um objeto no bucket privado `vault`; ver
+[Storage](#storage). Conteúdo extraído ou colado fica em `content` e entra na
+mesma busca full-text de `knowledge`.
 
 ### `knowledge_relations`
 

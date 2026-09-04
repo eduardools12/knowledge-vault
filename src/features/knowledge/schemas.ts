@@ -54,6 +54,19 @@ const document = z.string().transform((raw, ctx): KnowledgeDocument => {
  */
 const editableStatuses = KNOWLEDGE_STATUSES.filter((status) => status !== "archived");
 
+/**
+ * Empty string, or the shared "none" sentinel from `AreaSelectField`, both mean
+ * "no area" — the select cannot carry an empty option value, so the sentinel is
+ * translated here rather than in the component.
+ */
+const areaId = z
+  .string()
+  .trim()
+  .transform((value) => (value && value !== "none" ? value : null))
+  .refine((value) => value === null || z.uuid().safeParse(value).success, {
+    error: "Área inválida.",
+  });
+
 export const knowledgeFormSchema = z.object({
   title,
   summary,
@@ -62,6 +75,9 @@ export const knowledgeFormSchema = z.object({
   status: z.enum(editableStatuses as [string, ...string[]], {
     error: "Selecione um status.",
   }),
+  areaId,
+  tagIds: z.array(z.uuid()).max(50).default([]),
+  sourceIds: z.array(z.uuid()).max(50).default([]),
 });
 
 export type KnowledgeFormInput = z.infer<typeof knowledgeFormSchema>;
@@ -83,6 +99,7 @@ export const knowledgeFiltersSchema = z.object({
   q: z.string().trim().max(120).optional().catch(undefined),
   level: z.enum(KNOWLEDGE_LEVELS).optional().catch(undefined),
   status: z.enum(KNOWLEDGE_STATUSES).optional().catch(undefined),
+  area: z.uuid().optional().catch(undefined),
   page: z.coerce.number().int().min(1).max(1000).optional().catch(undefined),
 });
 

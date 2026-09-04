@@ -67,22 +67,39 @@ Decisões que sustentam o resto:
 Ainda não incluídos aqui porque pertencem à Etapa 4: escolher área e tags no
 formulário, e vincular fontes. O schema já suporta os três.
 
-## Etapa 4 — Áreas, tags e fontes (próxima)
+## ✅ Etapa 4 — Áreas, tags e fontes
 
-CRUD dos três, incluindo hierarquia de áreas e vínculo de fontes a conhecimentos.
-Upload de arquivo para o bucket privado. Também fecha o formulário de
-conhecimento, que passa a permitir escolher área, tags e fontes.
+- CRUD completo dos três. Áreas com hierarquia (seletor indentado, sem oferecer
+  a própria área nem suas descendentes como pai); tags sem hierarquia, criação
+  rápida em lote na própria listagem; fontes com upload de arquivo.
+- Fecha o formulário de conhecimento: área, tags e fontes agora se escolhem ao
+  criar ou editar, e a página de detalhe mostra os três, com o lado inverso
+  (fonte → conhecimentos que a citam) também visível.
+- Upload direto do navegador para o Storage — não passa pelo servidor Next —
+  com o caminho revalidado no servidor contra o prefixo do próprio usuário
+  antes de qualquer gravação no banco.
+- Guarda contra ciclo na hierarquia de áreas, e o seletor da interface já
+  exclui as opções que o banco recusaria.
+- 26 testes novos (130 no total): construção e achatamento da árvore de áreas,
+  geração de slug com acentuação em português.
 
-Os embeds do PostgREST sobre as chaves compostas já foram verificados nas Etapas
-2 e 3 — `areas!knowledge_area_fk(...)`, `knowledge_tags(tags(...))` e
-`knowledge_sources(sources(...))` funcionam, então a listagem não precisa de SQL
-próprio.
+**Bug real encontrado e corrigido durante a verificação:** `ON DELETE SET
+NULL` numa chave estrangeira composta zera a tupla inteira, inclusive
+`user_id` — que é `NOT NULL`. Toda exclusão de uma área ou conhecimento com
+dependentes falhava. Detalhes e a correção em
+[architecture.md](architecture.md#a-armadilha-do-on-delete-set-null-composto).
+Só apareceu agora porque a Etapa 4 foi a primeira a excluir uma linha com
+dependentes de verdade.
 
-## Etapa 5 — Inbox
+## Etapa 5 — Inbox (próxima)
 
 Captura rápida: URL, texto, arquivo, ideia. Fila com os quatro estados e o fluxo
 de transformar um item em conhecimento estruturado, preservando o vínculo de
 origem.
+
+O trigger que zera `inbox_items.knowledge_id` quando o conhecimento é excluído
+já existe desde a Etapa 4 (`knowledge_detach_inbox_references`) — a tabela
+`inbox_items` só ainda não tem interface.
 
 ## Etapa 6 — Relacionamentos
 

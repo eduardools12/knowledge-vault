@@ -2,6 +2,7 @@ import { ArchiveIcon } from "lucide-react";
 import Link from "next/link";
 
 import { LevelIndicator } from "@/components/knowledge/level-indicator";
+import { TagBadge } from "@/components/tags/tag-badge";
 import { Badge } from "@/components/ui/badge";
 import type { KnowledgeSummary } from "@/features/knowledge/queries";
 import { formatRelativeTime, toDateTimeAttribute } from "@/lib/dates";
@@ -46,6 +47,9 @@ export function KnowledgeListItem({ item, now }: { item: KnowledgeSummary; now: 
               {item.area ? (
                 <span className="text-muted-foreground truncate text-xs">{item.area.name}</span>
               ) : null}
+              {item.tags.map((tag) => (
+                <TagBadge key={tag.id} name={tag.name} color={tag.color} />
+              ))}
             </div>
           </div>
 
