@@ -12,12 +12,16 @@ capturar → organizar → compreender → relacionar → consultar → aplicar
 
 ## Estado atual
 
-**Etapa 1 concluída** — arquitetura, modelo de dados e autenticação, com o
-banco provisionado e o fluxo de acesso verificado ponta a ponta.
+**Etapas 1 e 2 concluídas** — arquitetura, banco, autenticação, casca da
+aplicação e dashboard, com o fluxo verificado ponta a ponta no navegador.
 
 O banco já contempla o produto inteiro (grafo, revisão espaçada, embeddings,
-projetos), mesmo que a interface ainda cubra apenas o acesso. Isso é
-intencional: mudar schema depois que existem dados é caro; mudar tela é barato.
+projetos), mesmo que a interface ainda cubra pouco dele. Isso é intencional:
+mudar schema depois que existem dados é caro; mudar tela é barato.
+
+As dez seções da sidebar já existem como rota. As que ainda não foram
+construídas dizem em qual etapa entram e o que vão permitir — uma seção honesta
+sobre estar inacabada confunde menos do que uma que parece quebrada.
 
 Veja [docs/roadmap.md](docs/roadmap.md) para as 14 etapas.
 
@@ -102,14 +106,19 @@ src/
 ├── components/
 │   ├── ui/                Primitivas do shadcn/ui
 │   ├── forms/             Campo, alerta e botão de submit acessíveis
-│   └── layout/            Elementos de casca da aplicação
+│   ├── common/            Cabeçalho de página, estado vazio, placeholder
+│   ├── knowledge/         Indicador de nível de maturidade
+│   └── layout/            Sidebar, navegação mobile, menu de usuário
 ├── features/
-│   └── auth/              Server Actions e schemas de validação
+│   ├── auth/              Server Actions e schemas de validação
+│   └── dashboard/         Consultas, insights e componentes do dashboard
 ├── lib/
 │   ├── auth/dal.ts        Data Access Layer — checagem autoritativa de sessão
 │   ├── supabase/          Clientes de browser, servidor e proxy
 │   ├── domain.ts          Enums do banco ↔ rótulos em português
 │   ├── routes.ts          Rotas e classificação público/privado
+│   ├── navigation.ts      Itens da sidebar e estado de item ativo
+│   ├── dates.ts           Datas relativas em pt-BR
 │   ├── env.ts             Validação das variáveis de ambiente
 │   └── forms.ts           Contrato compartilhado dos formulários
 └── proxy.ts               Refresh de sessão e redirecionamento otimista

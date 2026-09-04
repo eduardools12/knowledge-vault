@@ -14,6 +14,7 @@ ordem de nome de arquivo.
 | `...000700_embeddings.sql` | `pgvector`, tabela de vetores, índice HNSW |
 | `...000800_storage.sql` | Bucket privado e políticas de arquivo |
 | `...000900_index_and_execute_hardening.sql` | Índices alinhados às FKs compostas; EXECUTE revogado das funções de trigger |
+| `...001000_dashboard_summary.sql` | Função de agregados do dashboard |
 
 ## Modelo
 
@@ -166,6 +167,28 @@ Busca sensível a acento pode virar insensível com uma configuração customiza
 combinando `unaccent` com `portuguese_stem`. Ficou de fora do MVP porque exige
 criar uma text search configuration e qualificar o dicionário pelo schema —
 fragilidade que não se paga antes de haver acervo.
+
+## Agregados do dashboard
+
+`dashboard_summary()` devolve, em uma chamada, todos os números do dashboard.
+
+Existe por dois motivos. O primeiro é latência: uma dúzia de contagens via
+PostgREST seriam doze idas e voltas até São Paulo. O segundo é que duas delas
+não se expressam bem em PostgREST — "conhecimentos sem nenhuma fonte" é um
+anti-join e "área mais movimentada da semana" é um group by com ordenação.
+
+O detalhe que sustenta a segurança: a função é **`security invoker`**. Ela roda
+como quem chamou, então cada `select` interno continua filtrado por RLS. Uma
+versão `security definer` somaria o banco inteiro, de todos os usuários, sem
+erro nenhum — silenciosamente. Por isso não existe `where user_id = ...` dentro
+dela: o RLS acrescenta essa condição, e repeti-la à mão sugeriria que a policy é
+opcional.
+
+`revoke execute ... from anon` completa: sem sessão não há nada para contar.
+
+O retorno é `jsonb` e é validado com Zod em `src/features/dashboard/queries.ts`,
+o que restaura um tipo real na fronteira — mudança no SQL sem ajuste no schema
+falha alto, em vez de virar card vazio.
 
 ## Storage
 

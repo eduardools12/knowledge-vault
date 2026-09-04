@@ -93,6 +93,10 @@ Vitest, ambiente Node. A suíte cobre as funções puras e críticas:
 - `tests/auth-schemas.test.ts` — validação dos formulários de acesso, que é o
   ponto de aplicação no servidor.
 - `tests/forms.test.ts` — a ponte entre `FormData` e as Server Actions.
+- `tests/dashboard-insights.test.ts` — quais frases o dashboard mostra e a
+  concordância de número em português.
+- `tests/dates.test.ts` — datas relativas em pt-BR, incluindo o arredondamento
+  que não pode transformar 25 horas em "há 2 dias".
 
 ```bash
 npm test
@@ -115,6 +119,38 @@ Duas mudanças importantes em relação a versões anteriores:
 A documentação da versão instalada fica em `node_modules/next/dist/docs/` e é a
 referência correta — a versão é recente o bastante para divergir do que
 buscadores e modelos de linguagem assumem.
+
+## Notas sobre o shadcn/ui (Base UI)
+
+Esta versão do shadcn/ui roda sobre **Base UI**, não Radix. A API difere em
+pontos que custam tempo se descobertos um por um — todos foram encontrados
+construindo a Etapa 2:
+
+**`asChild` não existe; use `render`.** Para um botão que é um link:
+
+```tsx
+<Button render={<Link href={ROUTES.inbox} />}>Ir para a Inbox</Button>
+```
+
+**`DropdownMenuLabel` só vale dentro de um grupo.** Ele é o `Menu.GroupLabel` do
+Base UI e lança `MenuGroupContext is missing` se ficar solto no menu. Um rótulo
+que nomeia um conjunto de itens vai dentro do `DropdownMenuRadioGroup` ou
+`DropdownMenuGroup`; um cabeçalho que não nomeia itens (o nome do usuário, por
+exemplo) deve ser um elemento comum.
+
+**`nativeButton` quando o `render` é um `<button>` de verdade.** Sem isso o Base
+UI assume que está renderizando um não-botão e duplica `role` e `aria-disabled`.
+
+**Popups fechados podem continuar montados.** O Base UI só desmonta um popup
+quando a transição de saída avisa que terminou. Quando o fechamento acontece no
+mesmo commit de uma navegação, a transição nunca chega a começar e o painel fica
+no DOM com `opacity: 0`, engolindo todos os cliques por cima da página. Por isso
+`src/components/ui/sheet.tsx` recebeu `data-closed:pointer-events-none` — o
+comentário no arquivo explica o caso.
+
+**Guard de hidratação para tema costuma ser desnecessário.** O conteúdo de menus
+e sheets só é montado quando abertos, ou seja, sempre depois da hidratação. Ler
+`useTheme()` ali dentro não gera mismatch e dispensa o `mounted` habitual.
 
 ## Deploy (Vercel)
 

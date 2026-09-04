@@ -32,35 +32,31 @@ export type KnowledgeLevel = (typeof KNOWLEDGE_LEVELS)[number];
  */
 export const KNOWLEDGE_LEVEL_META: Record<
   KnowledgeLevel,
-  Described<KnowledgeLevel> & { emoji: string; tone: string }
+  Described<KnowledgeLevel> & { emoji: string }
 > = {
   discovered: {
     value: "discovered",
     label: "Descobri",
     description: "Acabei de encontrar o assunto.",
     emoji: "🟢",
-    tone: "level-discovered",
   },
   understood: {
     value: "understood",
     label: "Entendi",
     description: "Consigo explicar o conceito.",
     emoji: "🟡",
-    tone: "level-understood",
   },
   practiced: {
     value: "practiced",
     label: "Pratiquei",
     description: "Já utilizei na prática.",
     emoji: "🔵",
-    tone: "level-practiced",
   },
   mastered: {
     value: "mastered",
     label: "Domino",
     description: "Consigo usar ou explicar sem consultar a fonte.",
     emoji: "🟣",
-    tone: "level-mastered",
   },
 };
 

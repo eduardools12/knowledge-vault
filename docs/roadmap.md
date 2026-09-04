@@ -22,16 +22,27 @@ Código escrito não é etapa concluída.
 - Isolamento entre usuários verificado no próprio Postgres: RLS e chaves
   estrangeiras compostas, cada um testado de forma independente
 
-## Etapa 2 — Layout, navegação e dashboard
+## ✅ Etapa 2 — Layout, navegação e dashboard
 
-Sidebar com as dez seções, navegação mobile, menu de usuário, tema claro/escuro.
-Dashboard com contagens e atividade recente.
+- Casca da aplicação: sidebar fixa no desktop, sheet no mobile, menu de usuário
+  com tema claro/escuro/sistema
+- As dez seções existem como rota e página; as ainda não construídas dizem em
+  qual etapa entram e o que vão permitir, em vez de "em breve"
+- Dashboard que responde perguntas em vez de enfeitar: contagens, frases
+  acionáveis com link, distribuição de maturidade e atividade recente
+- Insight com contagem zero não é renderizado — card que marca "0" todo dia
+  ensina a não olhar
+- Estado vazio de primeiro uso, skeleton de carregamento e estado vazio por lista
+- `dashboard_summary()` resolve todos os agregados em uma chamada, com RLS ainda
+  escopando cada contagem
+- 29 testes novos (60 no total) sobre as frases do dashboard e as datas em pt-BR
 
-O dashboard responde perguntas, não enfeita: *"5 itens parados na Inbox"*,
-*"12 conhecimentos precisam de revisão"*, *"3 conhecimentos com poucas fontes"*.
-Sem gráfico que não muda decisão.
+Três bugs encontrados na verificação e corrigidos: `DropdownMenuLabel` fora de um
+grupo derrubava o menu de usuário no Base UI; o sheet mobile ficava montado com
+`opacity: 0` depois de navegar, engolindo todos os cliques; e as linhas de
+insight quebravam deixando o ícone sozinho numa linha no celular.
 
-## Etapa 3 — CRUD de conhecimentos
+## Etapa 3 — CRUD de conhecimentos (próxima)
 
 Listagem com filtros, página de detalhe, editor rico (títulos, listas, citação,
 código, links, tabelas, checklists), arquivar, nível de maturidade.
@@ -41,6 +52,12 @@ o segundo é o que alimenta busca e, depois, embeddings.
 
 Aqui entram os primeiros testes de integração contra Supabase real, para exercer
 RLS de verdade.
+
+Já verificado na Etapa 2: o PostgREST resolve embeds através das chaves
+estrangeiras compostas, inclusive o self-join de `knowledge_relations`. Ou seja,
+`areas!knowledge_area_fk(...)`, `knowledge_tags(tags(...))` e
+`knowledge_sources(sources(...))` funcionam, e a listagem não precisa de SQL
+próprio.
 
 ## Etapa 4 — Áreas, tags e fontes
 

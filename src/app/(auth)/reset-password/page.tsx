@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
-import { Button } from "@/components/ui/button";
+import { ButtonLink } from "@/components/common/button-link";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { ROUTES } from "@/lib/routes";
@@ -29,9 +28,9 @@ export default async function ResetPasswordPage() {
           </CardDescription>
         </CardHeader>
         <CardFooter>
-          <Button render={<Link href={ROUTES.forgotPassword} />} size="lg" className="w-full">
+          <ButtonLink href={ROUTES.forgotPassword} size="lg" className="w-full">
             Solicitar novo link
-          </Button>
+          </ButtonLink>
         </CardFooter>
       </Card>
     );

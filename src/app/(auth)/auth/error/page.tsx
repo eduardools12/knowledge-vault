@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
-import { Button } from "@/components/ui/button";
+import { ButtonLink } from "@/components/common/button-link";
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { ROUTES } from "@/lib/routes";
 
@@ -55,12 +54,12 @@ export default async function AuthErrorPage({
         <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardFooter className="grid gap-2">
-        <Button render={<Link href={ROUTES.login} />} size="lg" className="w-full">
+        <ButtonLink href={ROUTES.login} size="lg" className="w-full">
           Ir para o login
-        </Button>
-        <Button render={<Link href={ROUTES.forgotPassword} />} variant="ghost" size="lg" className="w-full">
+        </ButtonLink>
+        <ButtonLink href={ROUTES.forgotPassword} variant="ghost" size="lg" className="w-full">
           Solicitar novo link
-        </Button>
+        </ButtonLink>
       </CardFooter>
     </Card>
   );
