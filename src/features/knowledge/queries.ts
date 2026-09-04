@@ -1,0 +1,174 @@
+import "server-only";
+
+import { cache } from "react";
+
+import { sanitizeDocument, type KnowledgeDocument } from "@/features/knowledge/document";
+import { PAGE_SIZE, type KnowledgeFilters } from "@/features/knowledge/schemas";
+import { requireUser } from "@/lib/auth/dal";
+import type { KnowledgeLevel, KnowledgeStatus } from "@/lib/domain";
+import { toPrefixTsQuery } from "@/lib/search";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+
+/**
+ * Reads for the knowledge section.
+ *
+ * As everywhere else, no query filters by `user_id`: Row Level Security scopes
+ * every one of them. Writing the filter by hand would suggest the policy is
+ * optional and would hide a broken policy behind a condition that happens to do
+ * the same job.
+ */
+
+export type KnowledgeSummary = {
+  id: string;
+  title: string;
+  summary: string | null;
+  level: KnowledgeLevel;
+  status: KnowledgeStatus;
+  createdAt: string;
+  updatedAt: string;
+  area: { id: string; name: string; color: string | null } | null;
+};
+
+export type KnowledgeDetail = KnowledgeSummary & {
+  content: KnowledgeDocument;
+  contentText: string;
+  archivedAt: string | null;
+  lastReviewedAt: string | null;
+  nextReviewAt: string | null;
+  reviewCount: number;
+};
+
+const LIST_SELECT =
+  "id, title, summary, level, status, created_at, updated_at, area:areas!knowledge_area_fk(id, name, color)";
+
+const DETAIL_SELECT = `${LIST_SELECT}, content, content_text, archived_at, last_reviewed_at, next_review_at, review_count`;
+
+export type KnowledgeListResult = {
+  items: KnowledgeSummary[];
+  total: number;
+  page: number;
+  pageCount: number;
+};
+
+export async function listKnowledge(filters: KnowledgeFilters): Promise<KnowledgeListResult> {
+  await requireUser();
+
+  const supabase = await createSupabaseServerClient();
+  const page = filters.page ?? 1;
+  const from = (page - 1) * PAGE_SIZE;
+
+  let query = supabase
+    .from("knowledge")
+    .select(LIST_SELECT, { count: "exact" })
+    .range(from, from + PAGE_SIZE - 1);
+
+  // Archived records are hidden unless explicitly asked for. Archiving is how a
+  // user says "not now"; honouring that is the whole point of the feature.
+  query = filters.status ? query.eq("status", filters.status) : query.neq("status", "archived");
+
+  if (filters.level) {
+    query = query.eq("level", filters.level);
+  }
+
+  const tsQuery = filters.q ? toPrefixTsQuery(filters.q) : null;
+
+  if (tsQuery) {
+    // Runs against the stored `search_vector`, so it covers title, summary and
+    // body at once and uses the GIN index built in Etapa 1.
+    query = query.textSearch("search_vector", tsQuery, { config: "portuguese" });
+  }
+
+  // Most recently touched first. With a search term, relevance ranking would be
+  // better — that arrives with the rest of search in Etapa 8.
+  query = query.order("updated_at", { ascending: false });
+
+  const { data, error, count } = await query;
+
+  if (error) {
+    console.error("[knowledge] list failed:", error.message);
+
+    return { items: [], total: 0, page, pageCount: 1 };
+  }
+
+  const total = count ?? 0;
+
+  return {
+    items: (data ?? []).map(toSummary),
+    total,
+    page,
+    pageCount: Math.max(1, Math.ceil(total / PAGE_SIZE)),
+  };
+}
+
+/**
+ * A single record, or `null` when it does not exist — which, thanks to RLS, is
+ * also the answer for a record belonging to somebody else. The caller renders a
+ * 404 either way, so the two cases stay indistinguishable from outside.
+ */
+export const getKnowledgeById = cache(async (id: string): Promise<KnowledgeDetail | null> => {
+  await requireUser();
+
+  if (!isUuid(id)) {
+    // Postgres raises a type error on a malformed uuid; catching it here turns
+    // a junk URL into an ordinary 404 instead of a 500.
+    return null;
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("knowledge")
+    .select(DETAIL_SELECT)
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error || !data) {
+    if (error) {
+      console.error("[knowledge] detail failed:", error.message);
+    }
+
+    return null;
+  }
+
+  return {
+    ...toSummary(data),
+    // Sanitised on the way out as well as on the way in. Rows written before a
+    // schema change — or by a future importer — must not be able to render
+    // something the current schema would reject.
+    content: sanitizeDocument(data.content),
+    contentText: data.content_text,
+    archivedAt: data.archived_at,
+    lastReviewedAt: data.last_reviewed_at,
+    nextReviewAt: data.next_review_at,
+    reviewCount: data.review_count,
+  };
+});
+
+type ListRow = {
+  id: string;
+  title: string;
+  summary: string | null;
+  level: KnowledgeLevel;
+  status: KnowledgeStatus;
+  created_at: string;
+  updated_at: string;
+  area: { id: string; name: string; color: string | null } | null;
+};
+
+function toSummary(row: ListRow): KnowledgeSummary {
+  return {
+    id: row.id,
+    title: row.title,
+    summary: row.summary,
+    level: row.level,
+    status: row.status,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    area: row.area,
+  };
+}
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isUuid(value: string): boolean {
+  return UUID_PATTERN.test(value);
+}

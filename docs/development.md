@@ -97,6 +97,11 @@ Vitest, ambiente Node. A suíte cobre as funções puras e críticas:
   concordância de número em português.
 - `tests/dates.test.ts` — datas relativas em pt-BR, incluindo o arredondamento
   que não pode transformar 25 horas em "há 2 dias".
+- `tests/knowledge-document.test.ts` — sanitização do documento do editor. É o
+  que separa um payload enviado à mão do HTML que o servidor vai renderizar.
+- `tests/search.test.ts` — conversão da busca em `tsquery`. Operador não
+  escapado ali não dá resultado errado: dá erro de banco.
+- `tests/integration/rls.test.ts` — RLS pela API real (veja abaixo).
 
 ```bash
 npm test
@@ -104,9 +109,31 @@ npm run test:watch
 npm run test:coverage
 ```
 
-Não há teste escrito só para subir cobertura. O que precisa de banco e sessão
-real (RLS, permissões) pede teste de integração contra uma instância Supabase —
-planejado para quando o CRUD existir, na Etapa 3.
+Não há teste escrito só para subir cobertura.
+
+### Testes de integração
+
+`tests/integration/rls.test.ts` fala com um Supabase de verdade e prova o que
+nenhum teste unitário alcança: que um usuário autenticado, usando o mesmo
+cliente da aplicação, não chega às linhas de outro.
+
+Precisa de duas contas em um projeto com as migrações aplicadas. Coloque as
+credenciais em `.env.test.local` (git-ignored):
+
+```
+TEST_SUPABASE_URL=...
+TEST_SUPABASE_ANON_KEY=...
+TEST_USER_A_EMAIL=...
+TEST_USER_A_PASSWORD=...
+TEST_USER_B_EMAIL=...
+TEST_USER_B_PASSWORD=...
+```
+
+Sem essas variáveis a suíte **pula** em vez de falhar, para que `npm test`
+continue verde em uma máquina sem projeto de teste. O primeiro caso do arquivo
+confere que as duas contas são mesmo usuários diferentes — sem isso, um
+`.env.test.local` mal configurado faria todas as asserções passarem pelo motivo
+errado.
 
 ## Notas sobre o Next.js 16
 

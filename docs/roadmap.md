@@ -42,27 +42,41 @@ grupo derrubava o menu de usuário no Base UI; o sheet mobile ficava montado com
 `opacity: 0` depois de navegar, engolindo todos os cliques; e as linhas de
 insight quebravam deixando o ícone sozinho numa linha no celular.
 
-## Etapa 3 — CRUD de conhecimentos (próxima)
+## ✅ Etapa 3 — CRUD de conhecimentos
 
-Listagem com filtros, página de detalhe, editor rico (títulos, listas, citação,
-código, links, tabelas, checklists), arquivar, nível de maturidade.
+- Criar, editar, arquivar, restaurar e excluir, com confirmação só na exclusão —
+  confirmar o que é reversível ensina a clicar sem ler
+- Editor rico (Tiptap): títulos, negrito, itálico, tachado, destaque, código,
+  listas, checklists, citação, bloco de código, tabelas, links e linha divisória
+- Listagem com busca por prefixo, filtros de nível e status, e paginação
+- Página de detalhe renderizada no servidor, sem enviar o editor para quem só lê
+- Estados de carregamento, vazio e "não encontrado" para cada rota
+- 10 testes de integração contra o Supabase real, exercitando RLS pela API de
+  verdade — o que os testes unitários não alcançam
 
-O editor grava `content` em JSONB e `content_text` em texto puro no mesmo save —
-o segundo é o que alimenta busca e, depois, embeddings.
+Decisões que sustentam o resto:
 
-Aqui entram os primeiros testes de integração contra Supabase real, para exercer
-RLS de verdade.
+- **`content_text` é derivado no servidor**, nunca aceito do cliente. É o índice
+  de busca; um navegador que enviasse texto divergente do próprio documento
+  tornaria registros localizáveis por palavras que não contêm.
+- **Sanitização em duas portas**, e de novo na renderização. Detalhes em
+  [architecture.md](architecture.md#o-documento-de-conhecimento).
+- **Uma definição de schema** compartilhada entre editor e renderizador, para
+  que o editor não consiga produzir um nó que o servidor não entenda.
 
-Já verificado na Etapa 2: o PostgREST resolve embeds através das chaves
-estrangeiras compostas, inclusive o self-join de `knowledge_relations`. Ou seja,
-`areas!knowledge_area_fk(...)`, `knowledge_tags(tags(...))` e
-`knowledge_sources(sources(...))` funcionam, e a listagem não precisa de SQL
-próprio.
+Ainda não incluídos aqui porque pertencem à Etapa 4: escolher área e tags no
+formulário, e vincular fontes. O schema já suporta os três.
 
-## Etapa 4 — Áreas, tags e fontes
+## Etapa 4 — Áreas, tags e fontes (próxima)
 
 CRUD dos três, incluindo hierarquia de áreas e vínculo de fontes a conhecimentos.
-Upload de arquivo para o bucket privado.
+Upload de arquivo para o bucket privado. Também fecha o formulário de
+conhecimento, que passa a permitir escolher área, tags e fontes.
+
+Os embeds do PostgREST sobre as chaves compostas já foram verificados nas Etapas
+2 e 3 — `areas!knowledge_area_fk(...)`, `knowledge_tags(tags(...))` e
+`knowledge_sources(sources(...))` funcionam, então a listagem não precisa de SQL
+próprio.
 
 ## Etapa 5 — Inbox
 

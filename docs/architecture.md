@@ -123,6 +123,66 @@ Mensagens de falha em login e recuperação de senha são deliberadamente vagas.
 Dizer "este e-mail não existe" transformaria os dois formulários em oráculo de
 enumeração de contas.
 
+## O documento de conhecimento
+
+O editor é o **Tiptap** (ProseMirror). Escolhido porque seu modelo de documento
+é JSON, que é exatamente o que a coluna `content jsonb` guarda — sem conversão
+para HTML ou Markdown no meio, e com blocos novos podendo ser adicionados por
+extensão em vez de por migração.
+
+### Uma definição, dois lados
+
+`src/features/knowledge/document.ts` declara o conjunto de extensões e não
+importa nada de `@tiptap/react`. Os dois lados usam o mesmo arquivo: o navegador
+para rodar o editor, o servidor para renderizar o conteúdo salvo e para derivar
+o texto de busca. Assim o editor não consegue produzir um nó que o renderizador
+não entenda.
+
+### `content_text` é derivado, não recebido
+
+A aplicação nunca aceita o texto puro do cliente. Ele é calculado no servidor a
+partir do documento, a cada escrita.
+
+O motivo é que essa coluna é o índice de busca. Um navegador que enviasse texto
+divergente do próprio documento tornaria um registro localizável por palavras
+que ele não contém — ou, pior, silenciosamente impossível de achar.
+
+### Sanitização em duas portas
+
+1. **No editor**, o `Link` só aceita `http`, `https` e `mailto`.
+2. **No servidor**, `sanitizeDocument` percorre o documento inteiro antes de
+   gravar: descarta nós e marcas fora do schema, remove links com protocolo não
+   permitido, e impõe limites de profundidade e de número de nós contra payloads
+   feitos para estourar a pilha.
+
+A primeira porta é conveniência — ela roda no navegador e não obriga ninguém a
+nada. A segunda é a que vale.
+
+O documento é sanitizado **de novo na leitura**, antes de virar HTML. Uma linha
+pode ter sido gravada antes de uma mudança de schema, ou ter vindo de um
+importador futuro em vez deste editor.
+
+### Renderização no servidor
+
+A página de detalhe usa `generateHTML` do Tiptap no servidor: um leitor recebe
+HTML puro, sem nenhum JavaScript de editor. O `dangerouslySetInnerHTML` que isso
+exige está justificado no próprio componente — a resposta curta é que
+`generateHTML` só emite nós do schema, o texto é escapado pelo serializador, e o
+único atributo capaz de executar algo (`href`) passa pela lista de protocolos.
+
+## Busca
+
+O filtro da listagem converte o que a pessoa digita em um `tsquery` de prefixo
+(`pand:*`), rodando contra o `search_vector` da Etapa 1.
+
+Vale explicar por que não é `websearch_to_tsquery`, que sanitizaria a entrada de
+graça: ele não tem modo de prefixo, e uma caixa de busca em que se digita
+precisa encontrar "Pandas" a partir de "pand". A conversão está em
+`src/lib/search.ts`, é pura e é testada — `&`, `|`, `!`, `:` e parênteses são
+operadores para o Postgres, e um deles solto não dá resultado errado, dá erro.
+
+Ranking por relevância e busca combinada ficam para a Etapa 8.
+
 ## Idioma
 
 **Identificadores em inglês, interface em português.** Tabelas, colunas, valores
@@ -156,3 +216,17 @@ dados em produção.
 | Enums do Postgres | Texto com CHECK | Valor inválido vira erro no banco, não linha ruim. Adicionar valor é `ALTER TYPE ... ADD VALUE`. |
 | FKs compostas | Só RLS | Erro de autorização vira erro de constraint. |
 | `portuguese` como dicionário | `simple`, ou `unaccent` | Stemming e stop-words no idioma principal do acervo. `unaccent` exige configuração customizada e fica como evolução. |
+| Tiptap | Markdown em textarea | Modelo de documento em JSON, igual ao que a coluna guarda; blocos novos entram por extensão. |
+| `generateHTML` no servidor | Editor em modo leitura | Página de leitura sem JavaScript de editor. |
+
+### Um efeito colateral aceito
+
+Uma rota com `loading.tsx` envia o shell antes de a página resolver. Quando o
+registro não existe, `notFound()` acontece depois disso, então a resposta já foi
+comprometida como **200** e o usuário recebe a UI de "não encontrado" dentro de
+um corpo 200 em vez de um 404 de verdade.
+
+É inerente ao streaming: ou se abre mão do estado de carregamento, ou do código
+de status. Para um acervo pessoal, onde nenhum rastreador depende disso, o
+estado de carregamento vale mais. Fica registrado para não ser redescoberto como
+bug.

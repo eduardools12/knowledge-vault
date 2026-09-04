@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
@@ -149,4 +150,91 @@
   html {
     @apply font-sans;
   }
+}
+/* =============================================================================
+   Editor and rendered content
+   =============================================================================
+   The same rules serve both the Tiptap editor and the read-only render of a
+   saved document, so what a person sees while writing is what they get after
+   saving. Splitting them is how the two drift apart.
+   ========================================================================== */
+
+@layer components {
+  /* Tailwind Typography sizes for an article page; a knowledge note is denser
+     and sits inside an app, so the extremes are pulled back in. */
+  .knowledge-prose {
+    @apply prose prose-neutral dark:prose-invert max-w-none;
+    @apply prose-headings:font-semibold prose-headings:tracking-tight;
+    @apply prose-h1:text-xl prose-h2:text-lg prose-h3:text-base;
+    @apply prose-p:leading-relaxed;
+    @apply prose-a:font-normal prose-a:underline-offset-4;
+    @apply prose-code:rounded prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:font-normal;
+    /* Typography wraps inline code in backticks by default, which reads as
+       noise next to a real background. */
+    @apply prose-code:before:content-none prose-code:after:content-none;
+    @apply prose-pre:bg-muted prose-pre:text-foreground prose-pre:border;
+    @apply prose-blockquote:border-l-2 prose-blockquote:font-normal prose-blockquote:not-italic;
+  }
+
+  .knowledge-prose :where(mark) {
+    @apply bg-level-understood/35 rounded px-0.5 text-inherit;
+  }
+
+  /* Checklists. `list-style: none` has to be forced because Typography styles
+     `ul` generically and would otherwise draw a bullet beside every checkbox. */
+  .knowledge-prose :where(ul[data-type="taskList"]) {
+    @apply list-none pl-0;
+  }
+
+  .knowledge-prose :where(ul[data-type="taskList"] li) {
+    @apply flex items-start gap-2 pl-0;
+  }
+
+  .knowledge-prose :where(ul[data-type="taskList"] li > label) {
+    @apply mt-1 shrink-0;
+  }
+
+  .knowledge-prose :where(ul[data-type="taskList"] li > div) {
+    @apply min-w-0 flex-1;
+  }
+
+  .knowledge-prose :where(ul[data-type="taskList"] li > div > p) {
+    @apply my-0;
+  }
+
+  /* Tables can hold more columns than the column is wide, so they scroll
+     inside their own box instead of widening the whole page. */
+  .knowledge-prose :where(table) {
+    @apply my-4 block w-full overflow-x-auto border-collapse text-sm;
+  }
+
+  .knowledge-prose :where(th, td) {
+    @apply border px-3 py-1.5 align-top;
+  }
+
+  .knowledge-prose :where(th) {
+    @apply bg-muted text-left font-medium;
+  }
+}
+
+/* The editing surface itself. Focus is shown on the wrapper, not here, so the
+   ring frames the whole editor rather than the text area inside it. */
+.knowledge-editor .tiptap {
+  @apply min-h-[18rem] px-4 py-3 outline-none;
+}
+
+/* Placeholder text on the first line of an empty document. */
+.knowledge-editor .tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  @apply text-muted-foreground pointer-events-none float-left h-0;
+}
+
+/* Selected cells while editing a table. */
+.knowledge-editor .tiptap .selectedCell::after {
+  @apply bg-primary/15 pointer-events-none absolute inset-0 z-10;
+  content: "";
+}
+
+.knowledge-editor .tiptap :where(th, td) {
+  @apply relative;
 }

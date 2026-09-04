@@ -12,8 +12,9 @@ capturar → organizar → compreender → relacionar → consultar → aplicar
 
 ## Estado atual
 
-**Etapas 1 e 2 concluídas** — arquitetura, banco, autenticação, casca da
-aplicação e dashboard, com o fluxo verificado ponta a ponta no navegador.
+**Etapas 1 a 3 concluídas** — arquitetura, banco, autenticação, casca da
+aplicação, dashboard e o CRUD de conhecimentos com editor rico, tudo verificado
+ponta a ponta no navegador.
 
 O banco já contempla o produto inteiro (grafo, revisão espaçada, embeddings,
 projetos), mesmo que a interface ainda cubra pouco dele. Isso é intencional:
@@ -31,6 +32,7 @@ Veja [docs/roadmap.md](docs/roadmap.md) para as 14 etapas.
 | --- | --- |
 | Aplicação | Next.js 16 (App Router, Server Components) + TypeScript |
 | UI | Tailwind CSS v4 + shadcn/ui (Base UI) |
+| Editor | Tiptap (ProseMirror), documento em JSONB |
 | Backend | Server Actions e Route Handlers no próprio Next.js |
 | Banco | PostgreSQL via Supabase |
 | Auth | Supabase Auth (e-mail + senha) |
@@ -111,13 +113,15 @@ src/
 │   └── layout/            Sidebar, navegação mobile, menu de usuário
 ├── features/
 │   ├── auth/              Server Actions e schemas de validação
-│   └── dashboard/         Consultas, insights e componentes do dashboard
+│   ├── dashboard/         Consultas, insights e componentes do dashboard
+│   └── knowledge/         CRUD, editor, sanitização do documento e busca
 ├── lib/
 │   ├── auth/dal.ts        Data Access Layer — checagem autoritativa de sessão
 │   ├── supabase/          Clientes de browser, servidor e proxy
 │   ├── domain.ts          Enums do banco ↔ rótulos em português
 │   ├── routes.ts          Rotas e classificação público/privado
 │   ├── navigation.ts      Itens da sidebar e estado de item ativo
+│   ├── search.ts          Conversão da busca em tsquery de prefixo
 │   ├── dates.ts           Datas relativas em pt-BR
 │   ├── env.ts             Validação das variáveis de ambiente
 │   └── forms.ts           Contrato compartilhado dos formulários

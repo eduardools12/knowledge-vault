@@ -9,6 +9,10 @@ export default defineConfig({
     // component rendering. A DOM would add cost without adding coverage.
     environment: "node",
     include: ["tests/**/*.test.ts"],
+    setupFiles: ["tests/setup-env.ts"],
+    // The integration tests talk to a real Supabase project in São Paulo, so
+    // the default 5s timeout is not enough for a sign-in plus a round trip.
+    testTimeout: 20_000,
     coverage: {
       provider: "v8",
       include: ["src/lib/**/*.ts", "src/features/**/schemas.ts"],
