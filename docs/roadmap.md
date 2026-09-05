@@ -118,10 +118,27 @@ dependentes de verdade.
   `storage_path` dependendo do tipo escolhido — o tipo de lógica que não trava
   quando está errada, só arquiva a coisa certa na coluna errada.
 
-## Etapa 6 — Relacionamentos
+## ✅ Etapa 6 — Relacionamentos
 
-UI para criar arestas entre conhecimentos, com os oito tipos e direção. Exibição
-do lado inverso na página do alvo.
+- Seção "Relacionamentos" na página de um conhecimento: lista o que ele aponta
+  e o que aponta para ele, e um formulário para criar uma nova aresta —
+  conhecimento de destino, um dos oito tipos, direção (este conhecimento como
+  sujeito ou como objeto do tipo escolhido) e uma nota opcional.
+- Uma linha descreve os dois lados. A página do destino mostra o rótulo
+  inverso (`RELATION_TYPE_META`, de Etapa 1) automaticamente — nenhuma
+  segunda linha para manter em sincronia.
+- Sem migração nova: `knowledge_relations` e seus oito tipos já existiam
+  desde a Etapa 1.
+- 8 testes novos (155 no total): a função que decide qual id vira `from_id` e
+  qual vira `to_id` a partir da direção escolhida — inverter isso guardaria
+  toda relação com os dois lados trocados, silenciosamente.
+
+**Detalhe de banco que vale registrar:** como `knowledge_relations` tem duas
+chaves estrangeiras para a mesma tabela (`from_id` e `to_id`, ambas para
+`knowledge`), o PostgREST exige o nome da constraint em cada embed
+(`knowledge!knowledge_relations_to_fk`) — sem isso a consulta é recusada por
+ambiguidade. Detalhes em
+[database.md](database.md#knowledge_relations).
 
 ## Etapa 7 — Projetos
 

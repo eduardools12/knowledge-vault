@@ -184,6 +184,30 @@ type ListRow = {
   knowledge_tags: { tags: KnowledgeTag | null }[];
 };
 
+/** Minimal list for pickers, such as choosing the other side of a relation. */
+export const listKnowledgeOptions = cache(
+  async (excludeId?: string): Promise<{ id: string; title: string }[]> => {
+    await requireUser();
+
+    const supabase = await createSupabaseServerClient();
+    let query = supabase.from("knowledge").select("id, title").order("title").limit(500);
+
+    if (excludeId) {
+      query = query.neq("id", excludeId);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error("[knowledge] options failed:", error.message);
+
+      return [];
+    }
+
+    return data ?? [];
+  },
+);
+
 function toSummary(row: ListRow): KnowledgeSummary {
   return {
     id: row.id,

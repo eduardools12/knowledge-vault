@@ -109,6 +109,9 @@ Vitest, ambiente Node. A suíte cobre as funções puras e críticas:
 - `tests/inbox-schemas.test.ts` — para qual coluna a captura rápida roteia um
   mesmo campo de texto conforme o tipo escolhido, e que a validação do item
   completo exige o mesmo "ao menos um campo" que a constraint do banco.
+- `tests/relations-schemas.test.ts` — qual id vira `from_id` e qual vira
+  `to_id` a partir da direção escolhida. Inverter isso não trava nada; só
+  guarda toda relação com os dois lados trocados.
 - `tests/integration/rls.test.ts` — RLS pela API real (veja abaixo).
 
 ```bash

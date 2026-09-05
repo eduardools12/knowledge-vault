@@ -12,10 +12,11 @@ capturar → organizar → compreender → relacionar → consultar → aplicar
 
 ## Estado atual
 
-**Etapas 1 a 5 concluídas** — arquitetura, banco, autenticação, casca da
+**Etapas 1 a 6 concluídas** — arquitetura, banco, autenticação, casca da
 aplicação, dashboard, CRUD de conhecimentos com editor rico, áreas, tags e
-fontes com upload de arquivo, e a Inbox de captura rápida com fila de
-processamento, tudo verificado ponta a ponta no navegador.
+fontes com upload de arquivo, a Inbox de captura rápida com fila de
+processamento, e relacionamentos entre conhecimentos, tudo verificado ponta a
+ponta no navegador.
 
 O banco já contempla o produto inteiro (grafo, revisão espaçada, embeddings,
 projetos), mesmo que a interface ainda cubra pouco dele. Isso é intencional:
@@ -122,7 +123,8 @@ src/
 │   ├── areas/             CRUD, árvore e guarda de ciclo da hierarquia
 │   ├── tags/              CRUD e criação rápida em lote
 │   ├── sources/           CRUD, upload direto ao Storage e caminho assinado
-│   └── inbox/             Captura rápida, fila de estados e transformação em conhecimento
+│   ├── inbox/             Captura rápida, fila de estados e transformação em conhecimento
+│   └── relations/         Arestas do grafo entre conhecimentos, com direção e tipo
 ├── lib/
 │   ├── auth/dal.ts        Data Access Layer — checagem autoritativa de sessão
 │   ├── supabase/          Clientes de browser, servidor e proxy

@@ -99,7 +99,17 @@ Uma linha só descreve os dois lados. `RELATION_TYPE_META` em
 pré-requisito de" sem que exista uma segunda linha para manter em sincronia.
 
 Constraints: sem auto-referência (`from_id <> to_id`) e sem duplicata do mesmo
-par com o mesmo tipo.
+par com o mesmo tipo. Os dois lados aceitam mais de um tipo de relação
+simultaneamente — a constraint é `unique (from_id, to_id, type)`, não
+`unique (from_id, to_id)`.
+
+Como `from_id` e `to_id` apontam para a mesma tabela, um select que embute os
+dois lados precisa nomear a constraint em cada um (`knowledge!knowledge_relations_to_fk`,
+`knowledge!knowledge_relations_from_fk`) — sem isso o PostgREST não sabe qual
+das duas FKs seguir e recusa a consulta. `src/features/relations/queries.ts`
+faz duas consultas em vez de uma por isso: uma por `from_id` embutindo o `to`,
+outra por `to_id` embutindo o `from`, cada uma com o alias `knowledge` para
+que as duas voltem no mesmo formato.
 
 ### `reviews`
 

@@ -9,7 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { KnowledgeActions } from "@/features/knowledge/components/knowledge-actions";
 import { RenderedContent } from "@/features/knowledge/components/rendered-content";
-import { getKnowledgeById } from "@/features/knowledge/queries";
+import { getKnowledgeById, listKnowledgeOptions } from "@/features/knowledge/queries";
+import { RelationForm } from "@/features/relations/components/relation-form";
+import { RelationList } from "@/features/relations/components/relation-list";
+import { listRelationsForKnowledge } from "@/features/relations/queries";
 import { formatDate, formatRelativeTime, toDateTimeAttribute } from "@/lib/dates";
 import { KNOWLEDGE_LEVEL_META, SOURCE_TYPE_LABELS } from "@/lib/domain";
 import { ROUTES } from "@/lib/routes";
@@ -34,6 +37,11 @@ export default async function KnowledgeDetailPage({ params }: PageProps) {
     // out, and "does not exist" is the right thing to say either way.
     notFound();
   }
+
+  const [relations, targetOptions] = await Promise.all([
+    listRelationsForKnowledge(id),
+    listKnowledgeOptions(id),
+  ]);
 
   const now = new Date();
   const level = KNOWLEDGE_LEVEL_META[knowledge.level];
@@ -119,6 +127,30 @@ export default async function KnowledgeDetailPage({ params }: PageProps) {
 
       <Separator />
 
+      <section className="grid gap-4">
+        <h2 className="text-sm font-medium">
+          Relacionamentos
+          {relations.outgoing.length + relations.incoming.length > 0
+            ? ` (${relations.outgoing.length + relations.incoming.length})`
+            : ""}
+        </h2>
+
+        {relations.outgoing.length === 0 && relations.incoming.length === 0 ? (
+          <p className="text-muted-foreground text-sm">
+            Nenhuma relação com outro conhecimento ainda.
+          </p>
+        ) : (
+          <div className="grid gap-3">
+            <RelationList relations={relations.outgoing} knowledgeId={knowledge.id} direction="outgoing" />
+            <RelationList relations={relations.incoming} knowledgeId={knowledge.id} direction="incoming" />
+          </div>
+        )}
+
+        <RelationForm knowledgeId={knowledge.id} targetOptions={targetOptions} />
+      </section>
+
+      <Separator />
+
       <footer className="grid gap-4">
         <h2 className="text-sm font-medium">Histórico</h2>
 
@@ -148,13 +180,11 @@ export default async function KnowledgeDetailPage({ params }: PageProps) {
         </dl>
 
         {/*
-          Related knowledge and projects belong on this page too, and arrive
-          with the stages that build them (6 and 7). Saying so is more useful
-          than an empty section that looks broken.
+          Projects belong on this page too, and arrive with the stage that
+          builds them. Saying so is more useful than an empty section that
+          looks broken.
         */}
-        <p className="text-muted-foreground text-xs">
-          Conhecimentos relacionados e projetos aparecem aqui a partir das Etapas 6 e 7.
-        </p>
+        <p className="text-muted-foreground text-xs">Projetos aparecem aqui a partir da Etapa 7.</p>
       </footer>
     </article>
   );
