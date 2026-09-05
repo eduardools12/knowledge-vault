@@ -12,9 +12,10 @@ capturar → organizar → compreender → relacionar → consultar → aplicar
 
 ## Estado atual
 
-**Etapas 1 a 4 concluídas** — arquitetura, banco, autenticação, casca da
-aplicação, dashboard, CRUD de conhecimentos com editor rico, e áreas, tags e
-fontes com upload de arquivo, tudo verificado ponta a ponta no navegador.
+**Etapas 1 a 5 concluídas** — arquitetura, banco, autenticação, casca da
+aplicação, dashboard, CRUD de conhecimentos com editor rico, áreas, tags e
+fontes com upload de arquivo, e a Inbox de captura rápida com fila de
+processamento, tudo verificado ponta a ponta no navegador.
 
 O banco já contempla o produto inteiro (grafo, revisão espaçada, embeddings,
 projetos), mesmo que a interface ainda cubra pouco dele. Isso é intencional:
@@ -107,7 +108,7 @@ src/
 │   └── layout.tsx         Fontes, tema e providers globais
 ├── components/
 │   ├── ui/                Primitivas do shadcn/ui
-│   ├── forms/             Campo, alerta, cor e botão de submit acessíveis
+│   ├── forms/             Campo, alerta, cor, arquivo e botão de submit acessíveis
 │   ├── common/            Cabeçalho de página, estado vazio, paginação
 │   ├── knowledge/         Indicador de nível de maturidade
 │   ├── areas/             Seletor de área (compartilhado por área e conhecimento)
@@ -120,7 +121,8 @@ src/
 │   ├── knowledge/         CRUD, editor, sanitização do documento e busca
 │   ├── areas/             CRUD, árvore e guarda de ciclo da hierarquia
 │   ├── tags/              CRUD e criação rápida em lote
-│   └── sources/           CRUD, upload direto ao Storage e caminho assinado
+│   ├── sources/           CRUD, upload direto ao Storage e caminho assinado
+│   └── inbox/             Captura rápida, fila de estados e transformação em conhecimento
 ├── lib/
 │   ├── auth/dal.ts        Data Access Layer — checagem autoritativa de sessão
 │   ├── supabase/          Clientes de browser, servidor e proxy
@@ -132,7 +134,9 @@ src/
 │   ├── palette.ts         Paleta fixa de cores para áreas e tags
 │   ├── dates.ts           Datas relativas em pt-BR
 │   ├── env.ts             Validação das variáveis de ambiente
-│   └── forms.ts           Contrato compartilhado dos formulários
+│   ├── forms.ts           Contrato compartilhado dos formulários
+│   ├── storage.ts         Regras do bucket privado, compartilhadas entre features
+│   └── storage-server.ts  URL assinada e remoção de arquivo (só servidor)
 └── proxy.ts               Refresh de sessão e redirecionamento otimista
 
 supabase/migrations/       Schema versionado, aplicado em ordem

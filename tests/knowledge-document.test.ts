@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  documentFromPlainText,
   documentToPlainText,
   isDocumentEmpty,
   sanitizeDocument,
@@ -225,6 +226,37 @@ describe("documentToPlainText", () => {
     });
 
     expect(documentToPlainText(doc)).toBe("texto");
+  });
+});
+
+describe("documentFromPlainText", () => {
+  it("returns an empty document for empty text", () => {
+    expect(documentFromPlainText("")).toEqual({ type: "doc", content: [] });
+  });
+
+  it("turns each line into its own paragraph", () => {
+    const doc = documentFromPlainText("Primeiro.\nSegundo.");
+
+    expect(documentToPlainText(doc)).toBe("Primeiro.\nSegundo.");
+    expect(doc.content).toHaveLength(2);
+  });
+
+  it("drops blank lines instead of turning them into empty paragraphs", () => {
+    const doc = documentFromPlainText("Primeiro.\n\n\nSegundo.");
+
+    expect(doc.content).toHaveLength(2);
+  });
+
+  it("trims whitespace around each line", () => {
+    const doc = documentFromPlainText("  com espaço  ");
+
+    expect(documentToPlainText(doc)).toBe("com espaço");
+  });
+
+  it("produces a document the sanitizer accepts unchanged", () => {
+    const doc = documentFromPlainText("Uma ideia.\nOutra.");
+
+    expect(sanitizeDocument(doc)).toEqual(doc);
   });
 });
 

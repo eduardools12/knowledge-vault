@@ -4,9 +4,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { documentToPlainText } from "@/features/knowledge/document";
+import { documentToPlainText, type KnowledgeDocument } from "@/features/knowledge/document";
 import { knowledgeFormSchema } from "@/features/knowledge/schemas";
 import { requireUser } from "@/lib/auth/dal";
+import type { KnowledgeLevel } from "@/lib/domain";
 import { formError, parseFormData, type FormState } from "@/lib/forms";
 import { ROUTES } from "@/lib/routes";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -43,6 +44,50 @@ function revalidateKnowledge(id?: string) {
 }
 
 /**
+ * Inserts a knowledge record.
+ *
+ * Exported so the inbox's "transformar em conhecimento" action can create one
+ * the exact same way a plain create does, instead of a second insert that
+ * could drift from this one — `content_text`, above all, must always be
+ * derived the same way regardless of which flow produced the record.
+ */
+export async function insertKnowledge(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  userId: string,
+  fields: {
+    title: string;
+    summary: string | null;
+    content: KnowledgeDocument;
+    level: KnowledgeLevel;
+    status: "draft" | "active";
+    areaId: string | null;
+  },
+): Promise<{ id: string } | null> {
+  const { data, error } = await supabase
+    .from("knowledge")
+    .insert({
+      user_id: userId,
+      title: fields.title,
+      summary: fields.summary,
+      content: fields.content,
+      content_text: documentToPlainText(fields.content),
+      level: fields.level,
+      status: fields.status,
+      area_id: fields.areaId,
+    })
+    .select("id")
+    .single();
+
+  if (error || !data) {
+    console.error("[knowledge] create failed:", error?.message);
+
+    return null;
+  }
+
+  return data;
+}
+
+/**
  * Replaces a knowledge record's tag links.
  *
  * Delete-then-insert rather than a diff: the set is small, the operation runs
@@ -50,7 +95,7 @@ function revalidateKnowledge(id?: string) {
  * The composite foreign keys make a link to another user's tag impossible
  * regardless.
  */
-async function replaceKnowledgeTags(
+export async function replaceKnowledgeTags(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   userId: string,
   knowledgeId: string,
@@ -81,7 +126,7 @@ async function replaceKnowledgeTags(
 }
 
 /** Same shape as `replaceKnowledgeTags`, for the source links. */
-async function replaceKnowledgeSources(
+export async function replaceKnowledgeSources(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   userId: string,
   knowledgeId: string,
@@ -127,37 +172,26 @@ export async function createKnowledgeAction(
   const { title, summary, content, level, status, areaId, tagIds, sourceIds } = parsed.data;
   const supabase = await createSupabaseServerClient();
 
-  const { data, error } = await supabase
-    .from("knowledge")
-    .insert({
-      // Required by the NOT NULL column and by the RLS check; there is no
-      // default, so a missing value is a failed insert rather than a silent
-      // orphan.
-      user_id: user.id,
-      title,
-      summary,
-      content,
-      content_text: documentToPlainText(content),
-      level,
-      status: status as "draft" | "active",
-      area_id: areaId,
-    })
-    .select("id")
-    .single();
+  const inserted = await insertKnowledge(supabase, user.id, {
+    title,
+    summary,
+    content,
+    level,
+    status: status as "draft" | "active",
+    areaId,
+  });
 
-  if (error || !data) {
-    console.error("[knowledge] create failed:", error?.message);
-
+  if (!inserted) {
     return formError("Não foi possível salvar o conhecimento. Tente novamente.");
   }
 
   await Promise.all([
-    replaceKnowledgeTags(supabase, user.id, data.id, tagIds),
-    replaceKnowledgeSources(supabase, user.id, data.id, sourceIds),
+    replaceKnowledgeTags(supabase, user.id, inserted.id, tagIds),
+    replaceKnowledgeSources(supabase, user.id, inserted.id, sourceIds),
   ]);
 
-  revalidateKnowledge(data.id);
-  redirect(`${ROUTES.knowledge}/${data.id}`);
+  revalidateKnowledge(inserted.id);
+  redirect(`${ROUTES.knowledge}/${inserted.id}`);
 }
 
 const idSchema = z.uuid({ error: "Registro inválido." });

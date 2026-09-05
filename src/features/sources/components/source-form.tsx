@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState } from "react";
 
 import { Field } from "@/components/forms/field";
+import { FileField } from "@/components/forms/file-field";
 import { FormAlert } from "@/components/forms/form-alert";
 import { FormField } from "@/components/forms/form-field";
 import { SubmitButton } from "@/components/forms/submit-button";
@@ -16,8 +17,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { FileField } from "@/features/sources/components/file-field";
 import type { SourceDetail } from "@/features/sources/queries";
+import { buildSourcePath } from "@/features/sources/storage-path";
 import { SOURCE_TYPE_LABELS, SOURCE_TYPES } from "@/lib/domain";
 import { IDLE_FORM_STATE, type FormState } from "@/lib/forms";
 import { ROUTES } from "@/lib/routes";
@@ -132,6 +133,7 @@ export function SourceForm({
           <FileField
             name="storagePath"
             userId={userId}
+            buildPath={buildSourcePath}
             existingPath={source?.storagePath}
             existingLabel={source ? `Arquivo de “${source.title}”` : undefined}
           />

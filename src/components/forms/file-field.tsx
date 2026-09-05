@@ -4,12 +4,7 @@ import { FileIcon, Loader2Icon, PaperclipIcon, XIcon } from "lucide-react";
 import { useId, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import {
-  ALLOWED_MIME_TYPES,
-  BUCKET,
-  buildSourcePath,
-  MAX_FILE_BYTES,
-} from "@/features/sources/storage-path";
+import { ALLOWED_MIME_TYPES, BUCKET, MAX_FILE_BYTES } from "@/lib/storage";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type Status =
@@ -19,7 +14,7 @@ type Status =
   | { kind: "error"; message: string };
 
 /**
- * Attaches a file to a source.
+ * Attaches a file to a record — a source or an inbox item.
  *
  * The upload goes from the browser straight to Supabase Storage, and only the
  * resulting path is submitted with the form. A Server Action body is capped far
@@ -28,16 +23,21 @@ type Status =
  *
  * That is safe because the bucket's policies confine every write to the user's
  * own `{user_id}/` prefix, and because the server re-checks the submitted path
- * against the same rule — a form field can claim anything.
+ * against the same rule — a form field can claim anything. `buildPath` is what
+ * tells the two feature-specific rules (`sources/{uuid}` vs `inbox/{uuid}`)
+ * apart while the upload and validation logic stays in one place.
  */
 export function FileField({
   name,
   userId,
+  buildPath,
   existingPath,
   existingLabel,
 }: {
   name: string;
   userId: string;
+  /** Where the upload should live, e.g. `buildSourcePath` or `buildInboxPath`. */
+  buildPath: (userId: string, fileName: string) => string;
   existingPath?: string | null;
   /** What to call the already-attached file, since the path carries no name. */
   existingLabel?: string;
@@ -71,7 +71,7 @@ export function FileField({
     setStatus({ kind: "uploading", name: file.name });
 
     const supabase = createSupabaseBrowserClient();
-    const target = buildSourcePath(userId, file.name);
+    const target = buildPath(userId, file.name);
 
     const { error } = await supabase.storage
       .from(BUCKET)

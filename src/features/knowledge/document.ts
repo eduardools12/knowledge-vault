@@ -290,6 +290,24 @@ export function isDocumentEmpty(document: KnowledgeDocument): boolean {
   return documentToPlainText(document).length === 0;
 }
 
+/**
+ * Builds a minimal document out of plain text, one paragraph per line.
+ *
+ * Used to pre-fill the editor when a knowledge record starts from something
+ * that was never rich text in the first place — an inbox capture. Blank lines
+ * are dropped rather than turned into empty paragraphs, so pasted text with
+ * loose spacing does not open the editor full of blank lines.
+ */
+export function documentFromPlainText(text: string): KnowledgeDocument {
+  const content: DocumentNode[] = text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .map((line) => ({ type: "paragraph", content: [{ type: "text", text: line }] }));
+
+  return { type: "doc", content };
+}
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }

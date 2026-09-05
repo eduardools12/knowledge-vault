@@ -47,7 +47,7 @@ export const NAV_GROUPS: NavGroup[] = [
     label: null,
     items: [
       { href: ROUTES.dashboard, label: "Dashboard", icon: LayoutDashboardIcon },
-      { href: ROUTES.inbox, label: "Inbox", icon: InboxIcon, stage: "Etapa 5" },
+      { href: ROUTES.inbox, label: "Inbox", icon: InboxIcon },
     ],
   },
   {

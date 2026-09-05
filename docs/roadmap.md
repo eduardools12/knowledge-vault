@@ -91,15 +91,32 @@ dependentes falhava. Detalhes e a correção em
 Só apareceu agora porque a Etapa 4 foi a primeira a excluir uma linha com
 dependentes de verdade.
 
-## Etapa 5 — Inbox (próxima)
+## ✅ Etapa 5 — Inbox
 
-Captura rápida: URL, texto, arquivo, ideia. Fila com os quatro estados e o fluxo
-de transformar um item em conhecimento estruturado, preservando o vínculo de
-origem.
-
-O trigger que zera `inbox_items.knowledge_id` quando o conhecimento é excluído
-já existe desde a Etapa 4 (`knowledge_detach_inbox_references`) — a tabela
-`inbox_items` só ainda não tem interface.
+- Captura rápida no topo da própria listagem: um tipo (link, nota, ideia,
+  referência ou arquivo) e um campo cujo significado muda com o tipo — sem
+  redirecionar, para capturar em série sem perder o lugar.
+- Fila com os quatro estados (não processado, em análise, processado,
+  arquivado) como abas que mostram a contagem de cada um, porque uma fila se
+  trabalha um estado de cada vez.
+- Transformar em conhecimento reaproveita o próprio formulário de
+  conhecimento, pré-preenchido com o que a captura trouxe (link, texto ou
+  nota viram um rascunho de conteúdo), e usa a mesma função de inserção que a
+  criação comum — não uma segunda cópia que pudesse divergir dela.
+- O item continua na inbox depois de processado, marcado e apontando para o
+  conhecimento que ele virou; excluir o item não afeta esse conhecimento, e
+  excluir o conhecimento (trigger de Etapa 4) desfaz só o vínculo.
+- Nenhuma migração nova: `inbox_items`, seus quatro estados e o trigger que
+  desfaz o vínculo já existiam desde as Etapas 1 e 4. Só a camada de aplicação
+  faltava.
+- Upload de arquivo na captura e na edição reaproveita a mesma peça de
+  formulário das fontes (`FileField`, movida para `components/forms`), com as
+  regras do bucket (`vault`) generalizadas em `src/lib/storage.ts` em vez de
+  duplicadas por feature.
+- 17 testes novos (147 no total): a montagem de um documento a partir de texto
+  puro, e o roteamento de um mesmo campo de captura para `url`, `content` ou
+  `storage_path` dependendo do tipo escolhido — o tipo de lógica que não trava
+  quando está errada, só arquiva a coisa certa na coluna errada.
 
 ## Etapa 6 — Relacionamentos
 

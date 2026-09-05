@@ -58,19 +58,29 @@ const STATUS_ITEMS: Record<string, string> = {
 export function KnowledgeForm({
   action,
   knowledge,
+  initialValues,
   areaOptions,
   submitLabel,
   /** Rendered by the page, because `TagPicker` and `SourcePicker` are Server Components. */
   tagPicker,
   sourcePicker,
+  /** Extra hidden inputs the action needs, e.g. the inbox item being processed. */
+  hiddenFields,
 }: {
   action: KnowledgeAction;
   /** Absent when creating. */
   knowledge?: KnowledgeDetail;
+  /**
+   * Starting title and content for a fresh record that did not come from
+   * nothing — an inbox item being turned into knowledge. Ignored once
+   * `knowledge` is set: an edit always starts from the record itself.
+   */
+  initialValues?: { title?: string | null; content?: KnowledgeDocument };
   areaOptions: AreaOption[];
   submitLabel: string;
   tagPicker: React.ReactNode;
   sourcePicker: React.ReactNode;
+  hiddenFields?: React.ReactNode;
 }) {
   const [state, formAction] = useActionState(action, IDLE_FORM_STATE);
 
@@ -83,13 +93,14 @@ export function KnowledgeForm({
   return (
     <form action={formAction} className="grid gap-6" noValidate>
       {knowledge ? <input type="hidden" name="id" value={knowledge.id} /> : null}
+      {hiddenFields}
 
       <FormAlert state={state} />
 
       <FormField
         name="title"
         label="Título"
-        defaultValue={knowledge?.title ?? ""}
+        defaultValue={knowledge?.title ?? initialValues?.title ?? ""}
         placeholder="Ex.: Expected Goals (xG)"
         required
         autoFocus={!knowledge}
@@ -187,7 +198,7 @@ export function KnowledgeForm({
         {(field) => (
           <KnowledgeEditor
             name="content"
-            defaultValue={knowledge?.content as KnowledgeDocument | undefined}
+            defaultValue={(knowledge?.content as KnowledgeDocument | undefined) ?? initialValues?.content}
             ariaDescribedBy={field["aria-describedby"]}
           />
         )}

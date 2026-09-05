@@ -106,6 +106,9 @@ Vitest, ambiente Node. A suíte cobre as funções puras e críticas:
 - `tests/area-tree.test.ts` — construção e achatamento da árvore de áreas, e
   quais áreas um seletor de pai deve excluir. É a lógica que, se sutilmente
   errada, não dá resultado errado — trava a página.
+- `tests/inbox-schemas.test.ts` — para qual coluna a captura rápida roteia um
+  mesmo campo de texto conforme o tipo escolhido, e que a validação do item
+  completo exige o mesmo "ao menos um campo" que a constraint do banco.
 - `tests/integration/rls.test.ts` — RLS pela API real (veja abaixo).
 
 ```bash
