@@ -12,12 +12,12 @@ capturar → organizar → compreender → relacionar → consultar → aplicar
 
 ## Estado atual
 
-**Etapas 1 a 8 concluídas** — arquitetura, banco, autenticação, casca da
+**Etapas 1 a 9 concluídas** — arquitetura, banco, autenticação, casca da
 aplicação, dashboard, CRUD de conhecimentos com editor rico, áreas, tags e
 fontes com upload de arquivo, a Inbox de captura rápida com fila de
 processamento, relacionamentos entre conhecimentos, projetos com vínculo a
-conhecimentos, e busca global ranqueada com fallback trigram, tudo verificado
-ponta a ponta no navegador.
+conhecimentos, busca global ranqueada com fallback trigram, e a fundação de
+acesso a IA (sem feature visível ainda), tudo verificado ponta a ponta.
 
 O banco já contempla o produto inteiro (grafo, revisão espaçada, embeddings,
 projetos), mesmo que a interface ainda cubra pouco dele. Isso é intencional:
@@ -130,6 +130,7 @@ src/
 │   └── search/            Busca global ranqueada, com filtros combinados e fallback trigram
 ├── lib/
 │   ├── auth/dal.ts        Data Access Layer — checagem autoritativa de sessão
+│   ├── ai/                Acesso a LLM: provedor, custo, erro e limite de taxa
 │   ├── supabase/          Clientes de browser, servidor e proxy
 │   ├── domain.ts          Enums do banco ↔ rótulos em português
 │   ├── routes.ts          Rotas e classificação público/privado

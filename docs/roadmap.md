@@ -198,11 +198,28 @@ Filtrar só por nível devolvia, silenciosamente, toda fonte do acervo junto.
 Corrigido checando, antes de cada chamada, se o conjunto de filtros realmente
 diz algo sobre aquele lado.
 
-## Etapa 9 — Base para IA
+## ✅ Etapa 9 — Base para IA
 
-Interface própria de acesso a LLM: abstração de provedor, controle de custo,
-tratamento de erro e limite de taxa. Nenhuma feature visível — é a fundação que
-evita espalhar chamada de modelo pelo código.
+- `src/lib/ai/`: interface própria de acesso a modelo (`AiProvider`), com
+  `AnthropicProvider` como única implementação hoje — um segundo provedor é um
+  segundo arquivo com a mesma forma, não uma mudança em quem chama.
+- Controle de custo: toda chamada passa por uma estimativa de pior caso antes
+  de sair, recusada com `AiBudgetExceededError` se passar do teto pedido; o
+  custo real, do `usage` que o provedor devolve, volta em todo resultado.
+- Limite de taxa por usuário, em memória — pega um loop acidental, não
+  substitui um limitador de verdade se o produto crescer para múltiplos
+  usuários simultâneos de peso.
+- Hierarquia de erro própria (`AiConfigError`, `AiRateLimitError`,
+  `AiBudgetExceededError`, `AiProviderError`) — quem chama nunca captura uma
+  exceção do SDK da Anthropic diretamente.
+- Nenhuma feature visível, como o próprio roadmap já previa: sem tela, sem
+  rota nova. Detalhes completos em
+  [ai.md](ai.md#o-que-já-existe-na-aplicação).
+- 15 testes novos (184 no total), sobre o cálculo de custo e o limitador de
+  taxa — a orquestração fina em `client.ts` fica sem teste automatizado pelo
+  mesmo motivo de toda Server Action do projeto: `server-only` lança fora do
+  próprio build do Next.js, então essas peças são verificadas por leitura e
+  pela primeira feature real que as usar (Etapa 10), não por teste unitário.
 
 ## Etapa 10 — IA para processamento de conteúdo
 

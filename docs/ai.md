@@ -1,8 +1,10 @@
 # Inteligência artificial
 
-> Nada de IA está implementado. Este documento registra a estratégia e o que já
-> existe no schema para sustentá-la, para que as Etapas 9–12 sejam construção e
-> não redesenho.
+> A Etapa 9 construiu a fundação (interface de acesso a modelo, controle de
+> custo, tratamento de erro, limite de taxa) sem nenhuma feature visível. Este
+> documento registra a estratégia completa e o que já existe — no schema desde
+> a Etapa 1, na aplicação desde a Etapa 9 — para que as Etapas 10–12 sejam
+> construção sobre isso, não redesenho.
 
 ## Princípio
 
@@ -64,6 +66,61 @@ costuma ser mais relevante que o quinto resultado por similaridade de cosseno.
 **Etapa 14 — revisão**
 
 Gerar perguntas de revisão a partir do conteúdo e ajustar intervalos.
+
+## O que já existe na aplicação
+
+`src/lib/ai/` é o único ponto de acesso a um modelo — nenhum outro arquivo
+importa `@anthropic-ai/sdk`. É a peça central do princípio "não depender de um
+único fornecedor a ponto de não poder trocar": um segundo provedor, ou um
+modelo local, é um segundo arquivo implementando a mesma interface
+`AiProvider`, não uma mudança em quem chama.
+
+```
+src/lib/ai/
+├── types.ts               AiProvider, AiCompletionRequest/Result — as formas
+│                           que atravessam a fronteira, sem nada específico da
+│                           Anthropic
+├── errors.ts               Hierarquia própria (AiConfigError,
+│                           AiRateLimitError, AiBudgetExceededError,
+│                           AiProviderError) — quem chama nunca captura uma
+│                           exceção do SDK diretamente
+├── pricing.ts               Preço por token, cálculo do custo real
+│                           (`costForUsage`) e a estimativa de pior caso usada
+│                           antes de qualquer chamada (`estimateMaxCost`)
+├── rate-limit.ts            Limitador de janela deslizante, por usuário, em
+│                           memória
+├── anthropic-provider.ts   A única implementação de `AiProvider` hoje, e o
+│                           único arquivo que importa o SDK da Anthropic
+└── client.ts               `completeWithAi(userId, request)` — a função que
+                            toda feature deve chamar
+```
+
+**Custo é um limite, verificado antes da chamada, não uma métrica só
+observada depois.** `completeWithAi` estima o pior caso — todo caractere do
+texto de entrada contado como um token, o `maxTokens` pedido inteiro gasto na
+saída — e recusa a chamada com `AiBudgetExceededError` se isso passar do
+teto (`request.maxCostUsd`, com um padrão conservador). O custo real, sempre
+calculado a partir do `usage` que o provedor devolve de verdade, volta em
+`AiCompletionResult.costUsd` para quem chamou agregar ou logar como quiser —
+esta etapa não grava um histórico de gastos; fazer isso fica para quando uma
+feature de verdade precisar mostrá-lo.
+
+**O limitador de taxa é por usuário, em memória, de propósito simples.** Ele
+existe para pegar um loop acidental — um bug que chama a IA dentro de um
+`while`, uma retentativa em cascata — não para policiar um SaaS
+multi-tenant. Cada instância do servidor guarda seus próprios contadores, o
+que em produção (Vercel, várias instâncias) significa que o teto real por
+usuário é `maxRequests × número de instâncias`, não um número único. Um
+armazenamento compartilhado (Redis, ou uma tabela no Postgres) fecha essa
+lacuna, se algum dia importar.
+
+**Toda escrita de IA no futuro passa por `completeWithAi`, nunca por
+`AnthropicProvider` diretamente.** É essa função que aplica o limite de taxa e
+o teto de custo antes de delegar ao provedor — chamar o provedor por fora
+pula as duas proteções.
+
+`ANTHROPIC_API_KEY` é opcional em `src/lib/env.ts` até que uma feature de
+verdade chame `completeWithAi` — a Etapa 9 não tem nenhuma, de propósito.
 
 ## O que já existe no schema
 

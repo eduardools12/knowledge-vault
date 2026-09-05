@@ -20,6 +20,7 @@ cp .env.example .env.local
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | sim | Chave anônima/publicável — segura no browser, limitada por RLS |
 | `NEXT_PUBLIC_SITE_URL` | em produção | Origem usada nos links dos e-mails de confirmação e recuperação |
 | `SUPABASE_SERVICE_ROLE_KEY` | não (Etapa 11) | Ignora RLS. Só em job de servidor. **Nunca** com prefixo `NEXT_PUBLIC_` |
+| `ANTHROPIC_API_KEY` | não (Etapa 10) | Lida só por `src/lib/ai/anthropic-provider.ts`. **Nunca** com prefixo `NEXT_PUBLIC_` |
 
 As variáveis são validadas por Zod em `src/lib/env.ts` no carregamento do
 módulo. Configuração faltando falha na hora, com mensagem legível, em vez de
@@ -118,6 +119,10 @@ Vitest, ambiente Node. A suíte cobre as funções puras e críticas:
 - `tests/projects-schemas.test.ts` — que a data de término de um projeto não
   pode vir antes da de início, a mesma regra que `projects_date_order` já
   impõe no banco.
+- `tests/ai-pricing.test.ts` — o custo real por uso e a estimativa de pior
+  caso usada antes de qualquer chamada de IA sair.
+- `tests/ai-rate-limit.test.ts` — a janela deslizante do limitador de taxa:
+  permite até o limite, esquece chamadas antigas, isola por usuário.
 - `tests/integration/rls.test.ts` — RLS pela API real (veja abaixo).
 
 ```bash
@@ -225,3 +230,12 @@ projeto correspondente.
   fuso a oeste de UTC. Encontrado na Etapa 7 com `started_at`/`ended_at` de
   projetos; afetava `published_at` de fontes desde a Etapa 4 sem ter sido
   notado.
+- Um arquivo com `import "server-only"` não pode ser importado por um teste
+  Vitest — o pacote lança incondicionalmente fora da resolução de módulos do
+  próprio Next.js (a condição `react-server` do `package.json#exports`, que só
+  o build do Next ativa). Por isso lógica que precisa de teste automatizado
+  fica num arquivo *sem* `server-only` (`pricing.ts`, `rate-limit.ts`), e o
+  arquivo `server-only` que só orquestra essas peças (`client.ts`) é verificado
+  por leitura e pelo uso real, não por teste unitário — o mesmo já valia para
+  toda Server Action do projeto, só ficou explícito ao tentar testar
+  `src/lib/ai/client.ts` na Etapa 9.

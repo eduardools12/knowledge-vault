@@ -31,6 +31,13 @@ const serverEnvSchema = z.object({
    * (embedding generation, from Etapa 11). Optional so the app runs without it.
    */
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(20).optional(),
+
+  /**
+   * Only read by `src/lib/ai/anthropic-provider.ts`, and only at the moment
+   * something actually calls the AI client — Etapa 9 has no feature that
+   * does yet. Optional so the app runs without it until then.
+   */
+  ANTHROPIC_API_KEY: z.string().min(20).optional(),
 });
 
 function parseOrThrow<T extends z.ZodType>(schema: T, value: unknown, scope: string): z.infer<T> {
