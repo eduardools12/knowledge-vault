@@ -60,7 +60,18 @@ const PUBLIC_ROUTES: readonly string[] = [
   ...AUTH_ROUTES,
 ];
 
-const PUBLIC_PREFIXES: readonly string[] = ["/auth"];
+/**
+ * `/api` is here too, and for a different reason than `/auth`: a route
+ * under it is never a page, so redirecting an unauthenticated request to
+ * `/login` — this proxy's usual move — is meaningless to whatever is
+ * actually calling it. `/api/jobs/embeddings` (Etapa 11) is hit by Vercel
+ * Cron, which carries no session cookie at all; without this, every
+ * invocation would be redirected before its own `CRON_SECRET` check ever
+ * ran. Each route under `/api` is responsible for its own authorization and
+ * returns a real status code — this proxy's redirect was never the security
+ * boundary for pages either, see `updateSession`'s own doc comment.
+ */
+const PUBLIC_PREFIXES: readonly string[] = ["/auth", "/api"];
 
 export function isAuthRoute(pathname: string): boolean {
   return AUTH_ROUTES.includes(pathname);

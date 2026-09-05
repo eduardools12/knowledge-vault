@@ -18,6 +18,8 @@ ordem de nome de arquivo.
 | `...001100_area_hierarchy_guard.sql` | Trigger que impede ciclos na hierarquia de áreas |
 | `...001200_fix_composite_fk_set_null.sql` | Corrige `ON DELETE SET NULL` em FK composta (ver [architecture.md](architecture.md#a-armadilha-do-on-delete-set-null-composto)) |
 | `...001300_search_ranking.sql` | `search_knowledge` e `search_sources`, busca ranqueada com fallback trigram (ver [Busca](#busca-ranqueada-search_knowledge-e-search_sources)) |
+| `...000100_embedding_jobs_and_semantic_search.sql` (05/09) | `embedding_jobs` (fila de indexação), `search_knowledge_semantic` e `search_sources_semantic` (ver [Busca semântica](#busca-híbrida-search_knowledge_semantic-e-search_sources_semantic)) |
+| `...000200_embedding_jobs_user_id_index.sql` (05/09) | Índice em `embedding_jobs.user_id`, apontado pelo advisor do Supabase logo após a migração anterior |
 
 ## Modelo
 
@@ -133,8 +135,11 @@ auditável e a página do conhecimento continua sendo uma leitura de uma linha.
 
 ### `embeddings`
 
-Vazia no MVP. Existe porque criar depois significaria re-embedar o acervo
-inteiro.
+Criada vazia na Etapa 1 — porque criar depois significaria re-embedar o
+acervo inteiro — e populada desde a Etapa 11 pelo worker em
+`src/lib/embeddings/worker.ts`, o único código que escreve nela (com a chave
+de serviço; veja [Fila de indexação](#fila-de-indexação-embedding_jobs)
+abaixo).
 
 - Chunked: uma fonte longa vira várias linhas. `content` guarda o texto exato
   que gerou o vetor, para que uma resposta de RAG possa citar a passagem.
@@ -145,6 +150,33 @@ inteiro.
   `security definer` por necessidade: `authenticated` não tem policy de DELETE
   em `embeddings`, então um trigger rodando como o chamador teria o DELETE
   filtrado silenciosamente pelo RLS.
+
+### Fila de indexação: `embedding_jobs`
+
+Etapa 11. Registra "isto precisa ser (re)indexado", sem chamar nenhum modelo —
+quem chama o modelo é o worker, assíncrono, em outro processo (o Route
+Handler `src/app/api/jobs/embeddings`, disparado pelo Vercel Cron).
+
+- **Enfileirado por trigger, não pela aplicação.** `enqueue_embedding_job()`
+  roda `after insert or update of` só as colunas que realmente compõem o texto
+  indexado (`title, summary, content_text` em `knowledge`; `title,
+  description, content` em `sources`) — editar o `status` ou o `archived_at`
+  de um conhecimento, bem mais frequente que editar seu conteúdo, não gasta
+  uma chamada de embedding à toa. Mesma razão de ser `security definer` que
+  `delete_orphaned_embeddings`: `authenticated` não tem policy de INSERT em
+  `embedding_jobs`.
+- **Um job por owner, para sempre.** `unique (owner_type, owner_id)` mais um
+  `on conflict ... do update` fazem cinco edições seguidas, antes do worker
+  rodar uma vez, resetarem a mesma linha para `pending` em vez de empilhar
+  cinco jobs redundantes.
+- **Sem `FOR UPDATE SKIP LOCKED`.** O worker lê os `pending` mais antigos e já
+  marca `processing` antes de processar, mas não há claim atômico no banco.
+  Aceitável para um cron disparado um de cada vez sobre um acervo pessoal, e
+  processar o mesmo job duas vezes é inofensivo — a escrita em `embeddings` é
+  *replace* (apaga e reinsere), não *merge*.
+- **RLS permite só leitura ao dono.** Mesma política de `embeddings`: sem
+  policy de escrita para `authenticated`, porque não há razão legítima para o
+  cliente enfileirar ou concluir um job por conta própria.
 
 ## Convenções
 
@@ -201,7 +233,8 @@ por cascade — um cliente não consegue fabricar nem orfanar um perfil.
 
 ## Busca
 
-Dois mecanismos complementares.
+Três mecanismos complementares desde a Etapa 11: palavra-chave (`tsvector`),
+fallback trigram, e busca semântica (`embeddings`).
 
 **Coluna gerada `tsvector`** em `knowledge` e `sources`, com pesos:
 `A` = título, `B` = resumo/autor, `C` = corpo. É `GENERATED`, não trigger, então
@@ -214,9 +247,9 @@ não pode ser usada em coluna gerada.
 **Índices trigram** (`pg_trgm`) nos títulos e nomes, para que um título mal
 lembrado ainda encontre a nota.
 
-Busca semântica não é tentada aqui: chega na Etapa 11 sobre `embeddings`, e
-**complementa** esta busca em vez de substituí-la. Palavra-chave continua melhor
-para termo exato — nome de biblioteca, sigla, número de versão.
+Busca semântica (abaixo) **complementa** esta busca, não a substitui.
+Palavra-chave continua melhor para termo exato — nome de biblioteca, sigla,
+número de versão; semântica encontra o que não usa nenhuma dessas palavras.
 
 ### Busca ranqueada: `search_knowledge` e `search_sources`
 
@@ -257,6 +290,44 @@ exemplo, só por nível) é, portanto, uma decisão de quem chama: `search()` em
 dado realmente diz algo sobre fontes (`tag` ou tipo), e o mesmo vale ao
 contrário — sem essa checagem, filtrar por nível chamaria `search_sources`
 sem filtro nenhum e listaria toda fonte do acervo junto.
+
+### Busca híbrida: `search_knowledge_semantic` e `search_sources_semantic`
+
+Etapa 11. Mesmo motivo de existir que as duas funções acima — PostgREST não
+ordena por expressão — mas ranqueando por distância de cosseno sobre
+`embeddings` em vez de `ts_rank`.
+
+```sql
+select k.id, ..., min(e.embedding operator (extensions.<=>) query_embedding) as distance
+from knowledge k
+join embeddings e on e.owner_type = 'knowledge' and e.owner_id = k.id
+group by k.id, ...
+order by distance asc
+```
+
+Três decisões que valem registrar:
+
+- **`min(...)`, uma linha por registro.** Um conhecimento vira vários chunks;
+  isto devolve um resultado ranqueado por registro, pelo chunk mais próximo —
+  a mesma forma que o RAG (Etapa 12) vai reaproveitar para decidir qual trecho
+  citar.
+- **`OPERATOR(extensions.<=>)`, não `<=>` puro.** Com `search_path = ''` (toda
+  função aqui), a resolução de operador precisa do mesmo schema explícito que
+  uma chamada de função exigiria — um símbolo isolado não carrega isso.
+  Descoberto direto: a primeira versão desta função falhou ao aplicar com
+  `operator does not exist: extensions.vector <=> extensions.vector`.
+- **Ranking combinado em código, não em SQL.** `ts_rank` e distância de
+  cosseno não são a mesma escala, e não há forma correta de o Postgres
+  comparar os dois numa única `ORDER BY`. `search()` em
+  `src/features/search/queries.ts` chama as duas famílias de função em
+  paralelo e combina os resultados com Reciprocal Rank Fusion
+  (`reciprocalRankFusion` em `src/lib/search.ts`) — um método agnóstico à
+  escala de cada ranking, que soma `1 / (k + posição)` em cada lista em vez de
+  comparar os escores diretamente.
+
+Chamada pelo cliente Supabase autenticado comum (`security invoker`, RLS
+completo em `embeddings` e na tabela unida), nunca pela chave de serviço — só
+a *escrita* em `embeddings` precisa dela.
 
 ### Evolução possível
 

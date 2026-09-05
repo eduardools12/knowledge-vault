@@ -54,6 +54,16 @@ describe("isPublicRoute", () => {
     // matching on the raw string would quietly expose it.
     expect(isPublicRoute("/authenticate")).toBe(false);
     expect(isPublicRoute("/auth-admin")).toBe(false);
+    expect(isPublicRoute("/apixyz")).toBe(false);
+  });
+
+  it("allows every API route, so each one can apply its own authorization", () => {
+    // Etapa 11: the embedding worker (src/app/api/jobs/embeddings) is called
+    // by Vercel Cron, which carries no session cookie at all. Without this,
+    // the proxy would redirect the cron request to /login before the route's
+    // own CRON_SECRET check ever ran.
+    expect(isPublicRoute("/api/jobs/embeddings")).toBe(true);
+    expect(isPublicRoute("/api/anything")).toBe(true);
   });
 });
 

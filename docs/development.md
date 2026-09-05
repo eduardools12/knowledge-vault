@@ -19,8 +19,10 @@ cp .env.example .env.local
 | `NEXT_PUBLIC_SUPABASE_URL` | sim | URL do projeto Supabase |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | sim | Chave anônima/publicável — segura no browser, limitada por RLS |
 | `NEXT_PUBLIC_SITE_URL` | em produção | Origem usada nos links dos e-mails de confirmação e recuperação |
-| `SUPABASE_SERVICE_ROLE_KEY` | não (Etapa 11) | Ignora RLS. Só em job de servidor. **Nunca** com prefixo `NEXT_PUBLIC_` |
+| `SUPABASE_SERVICE_ROLE_KEY` | não | Ignora RLS. Só lida por `src/lib/supabase/service.ts`, usada pelo worker de embeddings (Etapa 11). **Nunca** com prefixo `NEXT_PUBLIC_` |
 | `ANTHROPIC_API_KEY` | não | Sem ela, "Sugerir com IA" na Inbox mostra um erro amigável em vez de quebrar — o resto do app funciona normalmente. Lida só por `src/lib/ai/anthropic-provider.ts`. **Nunca** com prefixo `NEXT_PUBLIC_` |
+| `OPENAI_API_KEY` | não | Sem ela, a fila de embeddings marca cada job como erro e a busca em `/busca` cai só para palavra-chave — nada quebra. Lida só por `src/lib/embeddings/openai-provider.ts`. **Nunca** com prefixo `NEXT_PUBLIC_` |
+| `CRON_SECRET` | não | Sem ela, `/api/jobs/embeddings` recusa toda chamada (503) em vez de rodar sem proteção. Configure o mesmo valor no job do Vercel Cron — veja [Deploy](#deploy-vercel) |
 
 As variáveis são validadas por Zod em `src/lib/env.ts` no carregamento do
 módulo. Configuração faltando falha na hora, com mensagem legível, em vez de
@@ -126,6 +128,19 @@ Vitest, ambiente Node. A suíte cobre as funções puras e críticas:
 - `tests/inbox-ai-suggestion.test.ts` — o prompt de sugestão (lista áreas e
   tags oferecidas, cai num placeholder sem conteúdo) e o filtro de defesa que
   descarta qualquer área/tag que o modelo alucine fora do que foi oferecido.
+- `tests/embeddings-chunking.test.ts` — o empacotamento de parágrafos em
+  chunks até o teto de tokens, e o corte forçado de um parágrafo que sozinho
+  já estoura o teto.
+- `tests/embeddings-pricing.test.ts` — o custo real e a estimativa de pior
+  caso para um lote de embeddings, mesmo par de garantias que
+  `tests/ai-pricing.test.ts` dá para completions.
+- `tests/embeddings-rate-limit.test.ts` — a mesma janela deslizante de
+  `tests/ai-rate-limit.test.ts`, verificada de novo porque é uma instância
+  separada com seu próprio tipo de erro (`EmbeddingRateLimitError`).
+- `tests/search.test.ts` também cobre `reciprocalRankFusion` — que um id
+  achado por duas listas supera um achado só por uma, e que o objeto da
+  primeira ocorrência vence num empate (é isso que preserva `matchKind` real
+  de um resultado de palavra-chave ao mesclar com o semântico).
 - `tests/integration/rls.test.ts` — RLS pela API real (veja abaixo).
 
 ```bash
@@ -214,6 +229,22 @@ e sheets só é montado quando abertos, ou seja, sempre depois da hidratação. 
 As migrações não são aplicadas pelo deploy: rode `npm run db:push` contra o
 projeto correspondente.
 
+### Cron da fila de embeddings (Etapa 11)
+
+`vercel.json` declara um Vercel Cron Job que chama `/api/jobs/embeddings` uma
+vez por dia (`0 3 * * *`). Dois passos manuais, feitos uma vez:
+
+1. Defina `CRON_SECRET` nas variáveis de ambiente do projeto — qualquer
+   string aleatória longa. O Vercel Cron a envia sozinho como
+   `Authorization: Bearer <valor>`; nenhuma outra configuração é necessária.
+2. Defina `OPENAI_API_KEY` e `SUPABASE_SERVICE_ROLE_KEY` também, ou a rota
+   roda protegida mas todo job termina em erro.
+
+Uma vez por dia é o padrão porque o plano Hobby do Vercel limita cron jobs a
+essa frequência; um plano Pro permite encurtar `schedule` em `vercel.json`
+(por exemplo `*/10 * * * *`) para indexação quase imediata, sem nenhuma
+mudança de código.
+
 ## Convenções de código
 
 - Sem `any` sem justificativa escrita.
@@ -241,4 +272,7 @@ projeto correspondente.
   arquivo `server-only` que só orquestra essas peças (`client.ts`) é verificado
   por leitura e pelo uso real, não por teste unitário — o mesmo já valia para
   toda Server Action do projeto, só ficou explícito ao tentar testar
-  `src/lib/ai/client.ts` na Etapa 9.
+  `src/lib/ai/client.ts` na Etapa 9. Mesma divisão aplicada de novo na Etapa
+  11: `src/lib/embeddings/chunking.ts` é puro e testado, `worker.ts` é
+  `server-only` e verificado por SQL direto contra o projeto Supabase (ver
+  docs/roadmap.md).

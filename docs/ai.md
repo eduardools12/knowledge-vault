@@ -3,10 +3,11 @@
 > A Etapa 9 construiu a fundação (interface de acesso a modelo, controle de
 > custo, tratamento de erro, limite de taxa) sem nenhuma feature visível. A
 > Etapa 10 construiu a primeira feature sobre ela: sugestão de título, resumo,
-> nível, área e tags ao transformar um item da Inbox em conhecimento. Este
-> documento registra a estratégia completa e o que já existe — no schema desde
-> a Etapa 1, na aplicação desde a Etapa 9 — para que as Etapas 11–12 sejam
-> construção sobre isso, não redesenho.
+> nível, área e tags ao transformar um item da Inbox em conhecimento. A Etapa
+> 11 indexou o acervo em vetores e tornou a busca híbrida — palavra-chave e
+> significado juntos. Este documento registra a estratégia completa e o que já
+> existe — no schema desde a Etapa 1, na aplicação desde a Etapa 9 — para que
+> a Etapa 12 (RAG) seja construção sobre isso, não redesenho.
 
 ## Princípio
 
@@ -58,18 +59,57 @@ Duas reduções de escopo deliberadas, não esquecimentos:
   exemplo, uma tela de "revisar sugestões pendentes" de verdade), não como
   extensão de schema não usada por ninguém ainda.
 
-**Etapa 11 — embeddings e busca semântica**
+**✅ Etapa 11 — embeddings e busca semântica**
 
-Indexar conhecimentos e fontes em vetores; buscar por significado.
+Construído: todo conhecimento e fonte é automaticamente indexado em vetores —
+sem nenhuma ação do usuário — e `/busca` combina o resultado com a busca por
+palavra-chave da Etapa 8. Detalhes em
+[`src/lib/embeddings/`](../src/lib/embeddings/) e
+[`src/app/api/jobs/embeddings`](../src/app/api/jobs/embeddings/route.ts).
 
 O caso que motiva: buscar *"como avaliar a qualidade das finalizações de um
-jogador"* deve encontrar notas sobre xG, shot quality e expected goals mesmo que
+jogador"* encontra notas sobre xG, shot quality e expected goals mesmo que
 nenhuma dessas palavras esteja na consulta.
 
-Busca semântica **complementa** a busca por palavra-chave, não a substitui.
-Palavra-chave continua melhor para termo exato — nome de biblioteca, sigla,
-número de versão. O destino é busca híbrida, combinando as duas com Reciprocal
-Rank Fusion.
+Busca semântica **complementa** a busca por palavra-chave, não a substitui —
+`search()` chama as duas famílias de função em paralelo e combina os
+resultados com Reciprocal Rank Fusion (`reciprocalRankFusion` em
+`src/lib/search.ts`), sem tentar comparar `ts_rank` e distância de cosseno
+numa única ordenação SQL. Palavra-chave continua melhor para termo exato —
+nome de biblioteca, sigla, número de versão.
+
+Pipeline, de ponta a ponta:
+
+```
+Salvar knowledge/source → trigger enfileira embedding_job (pending)
+  → Vercel Cron dispara /api/jobs/embeddings (diário)
+  → worker: busca texto → chunkText → embedTexts (OpenAI) → grava embeddings
+```
+
+Quatro decisões que valem registrar:
+
+- **Um segundo vendor, por necessidade, não por escolha.** A Anthropic não tem
+  endpoint de embeddings. `text-embedding-3-small` da OpenAI foi escolhido
+  porque produz vetores de 1536 dimensões nativamente — exatamente o que
+  `embeddings.embedding` já esperava desde a Etapa 1, sem truncar nem migrar
+  coluna. `src/lib/embeddings/` segue a mesma forma de `src/lib/ai/`
+  (`EmbeddingProvider`, erros próprios, limite de taxa, teto de custo) —
+  trocar de vendor de embedding também é um segundo arquivo, não uma reescrita.
+- **Enfileirado pelo banco, processado por um worker separado.** Nenhuma
+  Server Action chama `embedTexts` ao salvar um conhecimento — um trigger
+  grava um `embedding_job`, e o Route Handler que o Vercel Cron dispara é o
+  único lugar que efetivamente gera e grava vetores. Ver
+  [database.md](database.md#fila-de-indexação-embedding_jobs).
+- **Chunking simples, sem sobreposição.** Parágrafos são empacotados até um
+  teto de tokens, sem janela de sobreposição entre chunks — o texto de um
+  acervo pessoal é curto o bastante para que perder um pouco de contexto numa
+  fronteira custe menos do que a complexidade (e o armazenamento em dobro) de
+  sobrepor.
+- **Só conhecimentos e fontes, não itens da Inbox.** O schema já reservava
+  `owner_type = 'inbox_item'` desde a Etapa 1, mas nenhum trigger o usa ainda
+  — indexar rascunhos que talvez nunca virem conhecimento tem valor menor que
+  a base curada, e fica para quando fizer sentido por si, mesma lógica das
+  reduções de escopo da Etapa 10.
 
 **Etapa 12 — RAG**
 
@@ -153,6 +193,32 @@ pula as duas proteções.
 `ANTHROPIC_API_KEY` é opcional em `src/lib/env.ts` até que uma feature de
 verdade chame `completeWithAi` — a Etapa 9 não tem nenhuma, de propósito.
 
+### `src/lib/embeddings/` — a mesma forma, um vendor diferente
+
+```
+src/lib/embeddings/
+├── types.ts               EmbeddingProvider, EmbedRequest/Result
+├── errors.ts               EmbeddingConfigError, EmbeddingRateLimitError,
+│                           EmbeddingBudgetExceededError, EmbeddingProviderError
+├── pricing.ts               Preço por token da OpenAI, estimativa de pior caso
+├── rate-limit.ts            Limitador de janela deslizante — instância própria,
+│                           não compartilhada com o de src/lib/ai/
+├── openai-provider.ts       A única implementação hoje, e o único arquivo que
+│                           importa o SDK da OpenAI
+├── client.ts               embedTexts — a função que toda feature deve chamar
+├── chunking.ts              chunkText / buildIndexableText — puro, sem
+│                           `server-only`, testado diretamente
+└── worker.ts                Orquestra a fila: lê embedding_jobs pendentes,
+                            busca o texto, chunka, chama embedTexts, grava
+                            embeddings. Chamado só por
+                            src/app/api/jobs/embeddings.
+```
+
+`ANTHROPIC_API_KEY` e `OPENAI_API_KEY` são independentes: sem a segunda, o
+worker marca cada job como erro e a busca semântica falha silenciosamente —
+`/busca` continua funcionando só com palavra-chave, exatamente como antes da
+Etapa 11.
+
 ## O que já existe no schema
 
 ### `embeddings`
@@ -166,7 +232,8 @@ model       -- parte da identidade do chunk
 embedding   vector(1536)
 ```
 
-Quatro decisões que já estão tomadas:
+Quatro decisões que já estavam tomadas desde a Etapa 1, antes de haver
+qualquer coisa que escrevesse nela:
 
 - **Chunked.** Uma fonte longa vira várias linhas, e `content` guarda o trecho
   exato — é o que permite citar a passagem em vez do documento inteiro.
@@ -175,12 +242,15 @@ Quatro decisões que já estão tomadas:
 - **Índice HNSW**, distância de cosseno. Escolhido sobre IVFFlat porque não
   precisa de passo de treino e não perde precisão numa tabela que cresce poucas
   linhas por vez — exatamente o formato de um acervo pessoal.
-- **Dimensão 1536**, compatível com os modelos de embedding usuais. Mudar exige
-  migração da coluna; por isso está documentado aqui.
+- **Dimensão 1536**, compatível com os modelos de embedding usuais. Acabou
+  sendo exatamente a dimensão nativa de `text-embedding-3-small`, o modelo
+  escolhido na Etapa 11 — nenhuma migração de coluna foi necessária.
 
 RLS permite ao usuário **ler** os próprios vetores, nunca escrever. Vetor
 controlado pelo cliente permitiria envenenar o próprio contexto de RAG, e não há
-razão legítima para o navegador produzir um.
+razão legítima para o navegador produzir um. Quem escreve é
+`src/lib/embeddings/worker.ts`, com a chave de serviço — ver
+[database.md](database.md#fila-de-indexação-embedding_jobs).
 
 ### Grafo
 
@@ -199,8 +269,9 @@ visualização (Etapa 13) quanto à expansão de contexto do RAG.
   arquitetura precisa permitir trocar para um modelo local sem reescrever a
   aplicação — por isso o acesso a LLM fica atrás de uma interface própria, e não
   espalhado pelo código.
-- **Custo é limite, não detalhe.** Reindexação em massa precisa de fila e
-  limite; nada de embedar o acervo inteiro num request HTTP.
+- **Custo é limite, não detalhe.** Desde a Etapa 11, a indexação passa por uma
+  fila (`embedding_jobs`) processada em lotes pequenos por um worker
+  assíncrono — nunca o acervo inteiro embedado num único request HTTP.
 
 ## O que deliberadamente não será feito
 

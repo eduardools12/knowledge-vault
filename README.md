@@ -12,14 +12,15 @@ capturar → organizar → compreender → relacionar → consultar → aplicar
 
 ## Estado atual
 
-**Etapas 1 a 10 concluídas** — arquitetura, banco, autenticação, casca da
+**Etapas 1 a 11 concluídas** — arquitetura, banco, autenticação, casca da
 aplicação, dashboard, CRUD de conhecimentos com editor rico, áreas, tags e
 fontes com upload de arquivo, a Inbox de captura rápida com fila de
 processamento, relacionamentos entre conhecimentos, projetos com vínculo a
 conhecimentos, busca global ranqueada com fallback trigram, a fundação de
-acesso a IA, e a primeira feature sobre ela — sugestão de título, resumo,
-nível, área e tags ao transformar um item da Inbox em conhecimento, com
-detecção de duplicata provável — tudo verificado ponta a ponta.
+acesso a IA, sugestão de título/resumo/nível/área/tags ao transformar um item
+da Inbox em conhecimento, e busca híbrida — todo conhecimento e fonte é
+indexado em vetores automaticamente e `/busca` combina palavra-chave com
+significado — tudo verificado ponta a ponta.
 
 O banco já contempla o produto inteiro (grafo, revisão espaçada, embeddings,
 projetos), mesmo que a interface ainda cubra pouco dele. Isso é intencional:
@@ -42,7 +43,8 @@ Veja [docs/roadmap.md](docs/roadmap.md) para as 14 etapas.
 | Banco | PostgreSQL via Supabase |
 | Auth | Supabase Auth (e-mail + senha) |
 | Arquivos | Supabase Storage (bucket privado) |
-| Busca | `tsvector` + `pg_trgm` agora; `pgvector` já provisionado |
+| Busca | Híbrida: `tsvector` + `pg_trgm` (palavra-chave) e `pgvector` (semântica), combinadas com Reciprocal Rank Fusion |
+| Embeddings | OpenAI `text-embedding-3-small`, indexado por fila (Vercel Cron) |
 | Testes | Vitest |
 | Deploy | Vercel |
 
@@ -62,7 +64,7 @@ cp .env.example .env.local
 ```
 
 > O projeto Supabase `knowledge-vault` (região `sa-east-1`) já existe e está com
-> as 13 migrações aplicadas. O `.env.local` da máquina onde foi feito o setup já
+> as 15 migrações aplicadas. O `.env.local` da máquina onde foi feito o setup já
 > está preenchido; em outra máquina, copie os valores do dashboard.
 
 Para aplicar migrações novas a partir daqui:
@@ -109,6 +111,7 @@ src/
 ├── app/
 │   ├── (auth)/            Páginas públicas de acesso e handlers de e-mail
 │   ├── (app)/             Páginas privadas (exigem sessão)
+│   ├── api/jobs/embeddings/  Worker da fila de indexação, chamado pelo Vercel Cron
 │   └── layout.tsx         Fontes, tema e providers globais
 ├── components/
 │   ├── ui/                Primitivas do shadcn/ui
@@ -129,15 +132,16 @@ src/
 │   ├── inbox/             Captura rápida, fila de estados, transformação em conhecimento e sugestão por IA
 │   ├── relations/         Arestas do grafo entre conhecimentos, com direção e tipo
 │   ├── projects/          CRUD de projetos e vínculo com conhecimentos, com nota por par
-│   └── search/            Busca global ranqueada, com filtros combinados e fallback trigram
+│   └── search/            Busca híbrida (palavra-chave + semântica), com filtros combinados e fallback trigram
 ├── lib/
 │   ├── auth/dal.ts        Data Access Layer — checagem autoritativa de sessão
 │   ├── ai/                Acesso a LLM: provedor, custo, erro e limite de taxa
-│   ├── supabase/          Clientes de browser, servidor e proxy
+│   ├── embeddings/        Geração de vetores, chunking e o worker da fila de indexação
+│   ├── supabase/          Clientes de browser, servidor, serviço (bypassa RLS) e proxy
 │   ├── domain.ts          Enums do banco ↔ rótulos em português
 │   ├── routes.ts          Rotas e classificação público/privado
 │   ├── navigation.ts      Itens da sidebar e estado de item ativo
-│   ├── search.ts          Conversão da busca em tsquery de prefixo
+│   ├── search.ts          Conversão da busca em tsquery de prefixo e Reciprocal Rank Fusion
 │   ├── slug.ts            Geração de slug com suporte a acentuação
 │   ├── palette.ts         Paleta fixa de cores para áreas e tags
 │   ├── dates.ts           Datas relativas em pt-BR
@@ -150,6 +154,7 @@ src/
 supabase/migrations/       Schema versionado, aplicado em ordem
 docs/                      Arquitetura, banco, IA, desenvolvimento, roadmap
 tests/                     Testes das funções críticas
+vercel.json                Cron job diário que dispara a indexação de embeddings
 ```
 
 ## Documentação

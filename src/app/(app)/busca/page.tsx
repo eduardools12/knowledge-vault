@@ -40,8 +40,17 @@ export default async function SearchPage({
   const now = new Date();
 
   const isFiltered = hasAnySearchFilter(filters);
-  const knowledgeIsFuzzy = results.knowledge[0]?.matchKind === "fuzzy";
-  const sourcesIsFuzzy = results.sources[0]?.matchKind === "fuzzy";
+  // A group is "all fuzzy" only when the trigram fallback found something and
+  // nothing exact did — the check `search_knowledge`/`search_sources` already
+  // enforce internally. It can no longer be read off the first hit alone:
+  // since Etapa 11, a semantic-only hit can sort ahead of a fuzzy one after
+  // Reciprocal Rank Fusion, so every hit in the group has to be considered.
+  const knowledgeIsFuzzy =
+    results.knowledge.some((hit) => hit.matchKind === "fuzzy") &&
+    !results.knowledge.some((hit) => hit.matchKind === "exact");
+  const sourcesIsFuzzy =
+    results.sources.some((hit) => hit.matchKind === "fuzzy") &&
+    !results.sources.some((hit) => hit.matchKind === "exact");
   const total = results.knowledge.length + results.sources.length;
 
   return (

@@ -5,7 +5,7 @@ import {
   knowledgeFilterApplies,
   sourceFilterApplies,
 } from "@/features/search/schemas";
-import { toPrefixTsQuery } from "@/lib/search";
+import { reciprocalRankFusion, toPrefixTsQuery } from "@/lib/search";
 
 /**
  * A search box receives whatever people type, and `to_tsquery` treats `&`, `|`,
@@ -142,5 +142,53 @@ describe("knowledgeFilterApplies / sourceFilterApplies", () => {
   it("neither applies when nothing was given", () => {
     expect(knowledgeFilterApplies({})).toBe(false);
     expect(sourceFilterApplies({})).toBe(false);
+  });
+});
+
+/**
+ * The merge behind hybrid search (Etapa 11): combines the keyword ranking
+ * from `search_knowledge`/`search_sources` with the semantic ranking from
+ * `search_knowledge_semantic`/`search_sources_semantic`, neither of which is
+ * on a scale the other understands.
+ */
+describe("reciprocalRankFusion", () => {
+  it("keeps a single list's order when there is nothing to merge with", () => {
+    const list = [{ id: "a" }, { id: "b" }, { id: "c" }];
+
+    expect(reciprocalRankFusion([list])).toEqual(list);
+  });
+
+  it("ranks an id found by both lists above one found by only one", () => {
+    // "shared" is #2 in the first list and #1 in the second; "only-first" is
+    // #1 in the first list but absent from the second. Appearing in both
+    // should outweigh a single first-place finish.
+    const keyword = [{ id: "only-first" }, { id: "shared" }];
+    const semantic = [{ id: "shared" }, { id: "only-second" }];
+
+    const merged = reciprocalRankFusion([keyword, semantic]);
+
+    expect(merged[0].id).toBe("shared");
+  });
+
+  it("keeps the first list's item object on overlap, not the second's", () => {
+    // This is what lets a hit's real match kind ("exact"/"fuzzy") survive a
+    // merge with the semantic list instead of being overwritten by it.
+    const keyword = [{ id: "a", matchKind: "exact" }];
+    const semantic = [{ id: "a", matchKind: "semantic" }];
+
+    const merged = reciprocalRankFusion([keyword, semantic]);
+
+    expect(merged).toEqual([{ id: "a", matchKind: "exact" }]);
+  });
+
+  it("returns an empty list for no input", () => {
+    expect(reciprocalRankFusion([])).toEqual([]);
+    expect(reciprocalRankFusion([[], []])).toEqual([]);
+  });
+
+  it("ranks a higher position above a lower one within a single list", () => {
+    const list = [{ id: "first" }, { id: "second" }, { id: "third" }];
+
+    expect(reciprocalRankFusion([list]).map((item) => item.id)).toEqual(["first", "second", "third"]);
   });
 });

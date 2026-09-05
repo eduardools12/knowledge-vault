@@ -27,8 +27,11 @@ const publicEnvSchema = z.object({
 
 const serverEnvSchema = z.object({
   /**
-   * Bypasses Row Level Security. Only ever used by trusted server-side jobs
-   * (embedding generation, from Etapa 11). Optional so the app runs without it.
+   * Bypasses Row Level Security. Read only by
+   * `src/lib/supabase/service.ts`, used only by the embedding worker
+   * (Etapa 11) to read across every user's content and write to
+   * `embeddings`. Optional so the app runs without it — indexing just never
+   * runs, everything else is unaffected.
    */
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(20).optional(),
 
@@ -38,6 +41,25 @@ const serverEnvSchema = z.object({
    * does yet. Optional so the app runs without it until then.
    */
   ANTHROPIC_API_KEY: z.string().min(20).optional(),
+
+  /**
+   * Only read by `src/lib/embeddings/openai-provider.ts`. The Anthropic API
+   * has no embeddings endpoint, so semantic search (Etapa 11) depends on this
+   * separate vendor — see docs/ai.md. Optional so the app runs without it:
+   * the indexing worker just marks every job an error, and hybrid search
+   * silently falls back to keyword-only.
+   */
+  OPENAI_API_KEY: z.string().min(20).optional(),
+
+  /**
+   * Shared secret the embedding worker route
+   * (`src/app/api/jobs/embeddings`) requires on every request, so a public
+   * URL cannot be used to run up an OpenAI bill. Vercel Cron sends it as
+   * `Authorization: Bearer <value>` when configured on the cron job itself.
+   * Optional in the schema, but the route refuses every request — a safe
+   * default, not a soft one — when it is unset.
+   */
+  CRON_SECRET: z.string().min(20).optional(),
 });
 
 function parseOrThrow<T extends z.ZodType>(schema: T, value: unknown, scope: string): z.infer<T> {
@@ -80,7 +102,12 @@ export function getServerEnv(): z.infer<typeof serverEnvSchema> {
 
   cachedServerEnv ??= parseOrThrow(
     serverEnvSchema,
-    { SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY },
+    {
+      SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+      ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+      OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+      CRON_SECRET: process.env.CRON_SECRET,
+    },
     "server",
   );
 

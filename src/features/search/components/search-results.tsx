@@ -1,4 +1,4 @@
-import { ArchiveIcon } from "lucide-react";
+import { ArchiveIcon, SparklesIcon } from "lucide-react";
 import Link from "next/link";
 
 import { LevelIndicator } from "@/components/knowledge/level-indicator";
@@ -11,15 +11,36 @@ import { ROUTES } from "@/lib/routes";
 /**
  * A note above a group of fuzzy matches.
  *
- * `match_kind` only ever mixes within a group when the exact search found
- * nothing and every row came from the trigram fallback instead — so checking
- * the first hit is enough to know whether the whole list is approximate.
+ * The page decides when to show this by checking every hit in the group, not
+ * just the first — since Etapa 11 a semantic-only hit can sort ahead of a
+ * fuzzy one after Reciprocal Rank Fusion, so `matchKind` is no longer
+ * uniform across a group the way it was when keyword search was the only
+ * source of hits.
  */
 export function FuzzyMatchNotice() {
   return (
     <p className="text-muted-foreground text-xs">
       Nenhum resultado exato. Mostrando títulos parecidos.
     </p>
+  );
+}
+
+/**
+ * A quiet marker on a hit found only by meaning, not by any word it
+ * contains — the transparency docs/ai.md asks for whenever AI shapes what
+ * the user sees, even indirectly like this. `title` doubles as the tooltip,
+ * since the badge itself has no room for the explanation.
+ */
+function SemanticMatchBadge() {
+  return (
+    <Badge
+      variant="outline"
+      className="text-muted-foreground shrink-0 gap-1 font-normal"
+      title="Encontrado por significado, não pela palavra digitada"
+    >
+      <SparklesIcon className="size-3" aria-hidden="true" />
+      Por significado
+    </Badge>
   );
 }
 
@@ -49,6 +70,8 @@ export function KnowledgeSearchResultList({ hits, now }: { hits: KnowledgeSearch
                       Arquivado
                     </Badge>
                   ) : null}
+
+                  {hit.matchKind === "semantic" ? <SemanticMatchBadge /> : null}
                 </div>
 
                 {hit.summary ? (
@@ -89,6 +112,8 @@ export function SourceSearchResultList({ hits, now }: { hits: SourceSearchHit[];
                   <Badge variant="outline" className="shrink-0">
                     {SOURCE_TYPE_LABELS[hit.type]}
                   </Badge>
+
+                  {hit.matchKind === "semantic" ? <SemanticMatchBadge /> : null}
                 </div>
 
                 {hit.description ? (

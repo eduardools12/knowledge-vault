@@ -1,14 +1,3 @@
-/**
- * GENERATED FILE — DO NOT EDIT BY HAND.
- *
- * Regenerate after every migration with `npm run db:types` (requires the
- * Supabase CLI to be logged in: `npx supabase login`), then commit the result.
- *
- * The `Relationships` entries below are worth reading once: every foreign key
- * is composite, on `["user_id", "<parent>_id"]`. That is the tenant-isolation
- * design described in docs/architecture.md, visible in the types.
- */
-
 export type Json =
   | string
   | number
@@ -74,6 +63,42 @@ export type Database = {
             referencedColumns: ["user_id", "id"]
           },
         ]
+      }
+      embedding_jobs: {
+        Row: {
+          attempts: number
+          created_at: string
+          id: string
+          last_error: string | null
+          owner_id: string
+          owner_type: Database["public"]["Enums"]["embedding_owner_type"]
+          status: Database["public"]["Enums"]["embedding_job_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          owner_id: string
+          owner_type: Database["public"]["Enums"]["embedding_owner_type"]
+          status?: Database["public"]["Enums"]["embedding_job_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          owner_id?: string
+          owner_type?: Database["public"]["Enums"]["embedding_owner_type"]
+          status?: Database["public"]["Enums"]["embedding_job_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       embeddings: {
         Row: {
@@ -654,6 +679,25 @@ export type Database = {
           updated_at: string
         }[]
       }
+      search_knowledge_semantic: {
+        Args: {
+          filter_area?: string
+          filter_level?: Database["public"]["Enums"]["knowledge_level"]
+          filter_status?: Database["public"]["Enums"]["knowledge_status"]
+          filter_tag?: string
+          query_embedding: string
+          result_limit?: number
+        }
+        Returns: {
+          distance: number
+          id: string
+          level: Database["public"]["Enums"]["knowledge_level"]
+          status: Database["public"]["Enums"]["knowledge_status"]
+          summary: string
+          title: string
+          updated_at: string
+        }[]
+      }
       search_sources: {
         Args: {
           filter_tag?: string
@@ -674,8 +718,27 @@ export type Database = {
           type: Database["public"]["Enums"]["source_type"]
         }[]
       }
+      search_sources_semantic: {
+        Args: {
+          filter_tag?: string
+          filter_type?: Database["public"]["Enums"]["source_type"]
+          query_embedding: string
+          result_limit?: number
+        }
+        Returns: {
+          author: string
+          created_at: string
+          description: string
+          distance: number
+          id: string
+          published_at: string
+          title: string
+          type: Database["public"]["Enums"]["source_type"]
+        }[]
+      }
     }
     Enums: {
+      embedding_job_status: "pending" | "processing" | "done" | "error"
       embedding_owner_type: "knowledge" | "source" | "inbox_item"
       inbox_kind: "link" | "note" | "file" | "idea" | "reference"
       inbox_status: "unprocessed" | "in_review" | "processed" | "archived"
@@ -831,6 +894,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      embedding_job_status: ["pending", "processing", "done", "error"],
       embedding_owner_type: ["knowledge", "source", "inbox_item"],
       inbox_kind: ["link", "note", "file", "idea", "reference"],
       inbox_status: ["unprocessed", "in_review", "processed", "archived"],

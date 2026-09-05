@@ -255,10 +255,48 @@ ambiente" em vez de quebrar a página, provando que toda a cadeia (ação →
 pré-preenchimento do formulário e o aviso de duplicata foram verificados
 construindo a URL que o botão geraria após uma sugestão bem-sucedida.
 
-## Etapa 11 — Embeddings e busca semântica
+## ✅ Etapa 11 — Embeddings e busca semântica
 
-Pipeline de chunking e indexação com fila. Busca vetorial sobre `pgvector` e
-busca híbrida combinando com palavra-chave.
+- **Indexação automática, sem ação do usuário.** Um trigger no banco
+  enfileira um `embedding_job` sempre que título, resumo/descrição ou corpo de
+  um conhecimento ou fonte muda — nunca ao tocar campos irrelevantes como
+  `status`. `src/app/api/jobs/embeddings`, disparado diariamente pelo Vercel
+  Cron (`vercel.json`), processa a fila: busca o texto, quebra em chunks
+  (`chunkText`, sem sobreposição), gera os vetores e substitui os antigos.
+- **Segundo vendor, por necessidade.** A Anthropic não tem endpoint de
+  embeddings; `text-embedding-3-small` da OpenAI foi escolhido por produzir
+  1536 dimensões nativamente, a mesma dimensão que `embeddings.embedding` já
+  fixava desde a Etapa 1 — nenhuma migração de coluna. `src/lib/embeddings/`
+  segue a mesma forma de `src/lib/ai/` (provedor, erros, custo, limite de
+  taxa) construída na Etapa 9.
+- **Busca híbrida em `/busca`.** `search()` chama `search_knowledge_semantic`
+  / `search_sources_semantic` (ranqueadas por distância de cosseno) em
+  paralelo com `search_knowledge` / `search_sources` (Etapa 8), e combina os
+  dois rankings com Reciprocal Rank Fusion — `ts_rank` e distância de cosseno
+  não são a mesma escala, então a fusão acontece em código, não em SQL. Um
+  resultado achado só pela busca semântica ganha uma badge discreta
+  ("Por significado") na lista.
+- **Só conhecimentos e fontes, não a Inbox.** O schema já reservava
+  `owner_type = 'inbox_item'` desde a Etapa 1, mas nenhum trigger o usa —
+  indexar rascunhos que talvez nunca virem conhecimento vale menos que a base
+  curada, e fica para quando fizer sentido por si.
+- 3 arquivos de teste novos (233 no total): `embeddings-chunking.test.ts`,
+  `embeddings-pricing.test.ts`, `embeddings-rate-limit.test.ts`, mais os casos
+  de `reciprocalRankFusion` em `tests/search.test.ts`.
+
+Verificado sem uma chave da OpenAI (mesma situação da Etapa 10): o pipeline
+completo do banco foi exercitado direto por SQL contra o projeto Supabase —
+inserir um conhecimento enfileira o job; editar um campo não indexável não o
+reenfileira; editar título o reenfileira; `search_knowledge_semantic` /
+`search_sources_semantic` devolvem o registro certo com uma linha de
+`embeddings` inserida manualmente; apagar o registro limpa job e embeddings.
+Em `/busca`, uma consulta sem `OPENAI_API_KEY` configurada foi confirmada no
+navegador como um fallback silencioso para busca por palavra-chave, não uma
+falha de página. Também corrigido nesta etapa: `getServerEnv()` nunca
+repassava `ANTHROPIC_API_KEY` ao schema de validação — a chave sempre lia
+como não configurada, mesmo se definida — e `/api/*` não estava isento do
+redirecionamento de sessão do proxy, o que teria bloqueado toda chamada do
+Vercel Cron antes mesmo de chegar à checagem de `CRON_SECRET`.
 
 ## Etapa 12 — RAG
 
