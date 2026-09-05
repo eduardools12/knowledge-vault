@@ -91,8 +91,13 @@ export async function listKnowledge(filters: KnowledgeFilters): Promise<Knowledg
     query = query.textSearch("search_vector", tsQuery, { config: "portuguese" });
   }
 
-  // Most recently touched first. With a search term, relevance ranking would be
-  // better — that arrives with the rest of search in Etapa 8.
+  // Most recently touched first, even with a search term: this list is a
+  // filtered view of a known collection, not a ranked result set — someone
+  // typing into it expects the same recency order as the unfiltered list,
+  // just narrowed. Relevance-ranked search (weighted, with a trigram
+  // fallback) lives at `/busca` instead, via `search_knowledge()` — see
+  // `features/search/queries.ts` — because PostgREST cannot order by
+  // `ts_rank(...)` here at all.
   query = query.order("updated_at", { ascending: false });
 
   const { data, error, count } = await query;

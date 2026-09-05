@@ -12,11 +12,12 @@ capturar → organizar → compreender → relacionar → consultar → aplicar
 
 ## Estado atual
 
-**Etapas 1 a 7 concluídas** — arquitetura, banco, autenticação, casca da
+**Etapas 1 a 8 concluídas** — arquitetura, banco, autenticação, casca da
 aplicação, dashboard, CRUD de conhecimentos com editor rico, áreas, tags e
 fontes com upload de arquivo, a Inbox de captura rápida com fila de
-processamento, relacionamentos entre conhecimentos, e projetos com vínculo a
-conhecimentos, tudo verificado ponta a ponta no navegador.
+processamento, relacionamentos entre conhecimentos, projetos com vínculo a
+conhecimentos, e busca global ranqueada com fallback trigram, tudo verificado
+ponta a ponta no navegador.
 
 O banco já contempla o produto inteiro (grafo, revisão espaçada, embeddings,
 projetos), mesmo que a interface ainda cubra pouco dele. Isso é intencional:
@@ -59,7 +60,7 @@ cp .env.example .env.local
 ```
 
 > O projeto Supabase `knowledge-vault` (região `sa-east-1`) já existe e está com
-> as 12 migrações aplicadas. O `.env.local` da máquina onde foi feito o setup já
+> as 13 migrações aplicadas. O `.env.local` da máquina onde foi feito o setup já
 > está preenchido; em outra máquina, copie os valores do dashboard.
 
 Para aplicar migrações novas a partir daqui:
@@ -125,7 +126,8 @@ src/
 │   ├── sources/           CRUD, upload direto ao Storage e caminho assinado
 │   ├── inbox/             Captura rápida, fila de estados e transformação em conhecimento
 │   ├── relations/         Arestas do grafo entre conhecimentos, com direção e tipo
-│   └── projects/          CRUD de projetos e vínculo com conhecimentos, com nota por par
+│   ├── projects/          CRUD de projetos e vínculo com conhecimentos, com nota por par
+│   └── search/            Busca global ranqueada, com filtros combinados e fallback trigram
 ├── lib/
 │   ├── auth/dal.ts        Data Access Layer — checagem autoritativa de sessão
 │   ├── supabase/          Clientes de browser, servidor e proxy

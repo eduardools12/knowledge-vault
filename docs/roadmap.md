@@ -170,10 +170,33 @@ sido notado porque nada comparava a data exibida com a digitada. Corrigido
 tratando uma data no formato `YYYY-MM-DD` como um dia de calendário, não um
 instante; um timestamp completo continua se comportando como antes.
 
-## Etapa 8 — Busca avançada
+## ✅ Etapa 8 — Busca avançada
 
-Busca global sobre `tsvector` com ranking por peso, filtros combinados por área,
-tag, nível, status e tipo de fonte. Fallback trigram para título mal lembrado.
+- Página `/busca`: uma caixa de busca sobre conhecimentos e fontes ao mesmo
+  tempo, ranqueada pelos pesos do `tsvector` (título > resumo/autor > corpo),
+  combinável com área, tag, nível, status e tipo de fonte — cada filtro só
+  se aplica ao lado a que pertence, e "tag" vale para os dois.
+- Fallback trigram: quando a busca por palavra-chave não encontra nada, um
+  título parecido ainda aparece ("padnas" encontra "Pandas..."), com um aviso
+  de que o resultado é aproximado.
+- Filtrar sem digitar nada também funciona — lista o mais recente, sem
+  ranking, já que não há o que ranquear.
+- Duas funções no banco (`search_knowledge`, `search_sources`) fazem o
+  ranking: PostgREST não tem como ordenar por `ts_rank(...)`, a mesma razão
+  que já existia por trás de `dashboard_summary()`. Detalhes, inclusive o
+  ajuste de `word_similarity()` e por que o limiar é um valor literal em vez
+  do operador `<%`, em
+  [database.md](database.md#busca-ranqueada-search_knowledge-e-search_sources).
+- 5 testes novos (171 no total): que cada filtro só se aplica à busca a que
+  pertence — o tipo de erro que não trava nada, só faz uma busca por nível
+  devolver toda fonte do acervo junto.
+
+**Bug real encontrado e corrigido durante a verificação:** um filtro que só
+faz sentido para conhecimento (nível, status, área) fazia a busca de fontes
+rodar sem filtro nenhum — que as funções do banco tratam como "liste tudo".
+Filtrar só por nível devolvia, silenciosamente, toda fonte do acervo junto.
+Corrigido checando, antes de cada chamada, se o conjunto de filtros realmente
+diz algo sobre aquele lado.
 
 ## Etapa 9 — Base para IA
 

@@ -100,8 +100,10 @@ Vitest, ambiente Node. A suíte cobre as funções puras e críticas:
   (`"YYYY-MM-DD"`) não muda de dia conforme o fuso do servidor.
 - `tests/knowledge-document.test.ts` — sanitização do documento do editor. É o
   que separa um payload enviado à mão do HTML que o servidor vai renderizar.
-- `tests/search.test.ts` — conversão da busca em `tsquery`. Operador não
-  escapado ali não dá resultado errado: dá erro de banco.
+- `tests/search.test.ts` — conversão da busca em `tsquery` (operador não
+  escapado ali não dá resultado errado, dá erro de banco), e quais filtros da
+  busca global se aplicam a conhecimentos e a fontes — errar isso não trava
+  nada, só faz um filtro de nível devolver fontes sem filtro nenhum.
 - `tests/slug.test.ts` — geração de slug a partir de nome em português, com
   acentuação, e a busca por um slug único quando o nome já existe.
 - `tests/area-tree.test.ts` — construção e achatamento da árvore de áreas, e

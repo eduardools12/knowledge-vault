@@ -7,6 +7,7 @@ import {
   type LucideIcon,
   NetworkIcon,
   RepeatIcon,
+  SearchIcon,
   SettingsIcon,
   TagsIcon,
   BookMarkedIcon,
@@ -47,6 +48,7 @@ export const NAV_GROUPS: NavGroup[] = [
     label: null,
     items: [
       { href: ROUTES.dashboard, label: "Dashboard", icon: LayoutDashboardIcon },
+      { href: ROUTES.search, label: "Buscar", icon: SearchIcon },
       { href: ROUTES.inbox, label: "Inbox", icon: InboxIcon },
     ],
   },

@@ -632,9 +632,47 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      dashboard_summary: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
+      dashboard_summary: { Args: never; Returns: Json }
+      search_knowledge: {
+        Args: {
+          filter_area?: string
+          filter_level?: Database["public"]["Enums"]["knowledge_level"]
+          filter_status?: Database["public"]["Enums"]["knowledge_status"]
+          filter_tag?: string
+          q_raw?: string
+          q_tsquery?: string
+          result_limit?: number
+        }
+        Returns: {
+          id: string
+          level: Database["public"]["Enums"]["knowledge_level"]
+          match_kind: string
+          rank: number
+          status: Database["public"]["Enums"]["knowledge_status"]
+          summary: string
+          title: string
+          updated_at: string
+        }[]
+      }
+      search_sources: {
+        Args: {
+          filter_tag?: string
+          filter_type?: Database["public"]["Enums"]["source_type"]
+          q_raw?: string
+          q_tsquery?: string
+          result_limit?: number
+        }
+        Returns: {
+          author: string
+          created_at: string
+          description: string
+          id: string
+          match_kind: string
+          published_at: string
+          rank: number
+          title: string
+          type: Database["public"]["Enums"]["source_type"]
+        }[]
       }
     }
     Enums: {

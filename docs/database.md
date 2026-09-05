@@ -17,6 +17,7 @@ ordem de nome de arquivo.
 | `...001000_dashboard_summary.sql` | Função de agregados do dashboard |
 | `...001100_area_hierarchy_guard.sql` | Trigger que impede ciclos na hierarquia de áreas |
 | `...001200_fix_composite_fk_set_null.sql` | Corrige `ON DELETE SET NULL` em FK composta (ver [architecture.md](architecture.md#a-armadilha-do-on-delete-set-null-composto)) |
+| `...001300_search_ranking.sql` | `search_knowledge` e `search_sources`, busca ranqueada com fallback trigram (ver [Busca](#busca-ranqueada-search_knowledge-e-search_sources)) |
 
 ## Modelo
 
@@ -216,6 +217,46 @@ lembrado ainda encontre a nota.
 Busca semântica não é tentada aqui: chega na Etapa 11 sobre `embeddings`, e
 **complementa** esta busca em vez de substituí-la. Palavra-chave continua melhor
 para termo exato — nome de biblioteca, sigla, número de versão.
+
+### Busca ranqueada: `search_knowledge` e `search_sources`
+
+A busca global (`/busca`) usa duas funções, não o `.textSearch()` comum do
+PostgREST. O motivo é `ts_rank()`: o cliente PostgREST pode filtrar por
+`tsvector` (`@@`), mas não tem como pedir para ordenar por uma expressão como
+`ts_rank(...)` — não existe coluna para `.order()` apontar. A mesma razão que
+já tinha criado `dashboard_summary()`.
+
+Cada função tenta primeiro a busca por palavra-chave, ranqueada pelos pesos do
+`tsvector`. Só quando isso não encontra nada, cai para similaridade trigram no
+título — um *fallback*, não um ranking concorrente, então um resultado exato
+nunca perde lugar para um título apenas parecido. A coluna `match_kind`
+(`exact` ou `fuzzy`) que cada função devolve é o que deixa a interface avisar
+"nenhum resultado exato, mostrando títulos parecidos" em vez de misturar os
+dois silenciosamente.
+
+Dois detalhes que só apareceram testando com um título de verdade:
+
+- **`word_similarity()`, não `similarity()`.** Uma palavra digitada errada
+  comparada com o *título inteiro* dilui demais a sobreposição de trigramas —
+  "padnas" contra "Pandas para análise de dados" pontua 0.10 em `similarity`,
+  abaixo de qualquer limiar razoável. `word_similarity()` compara contra o
+  melhor trecho alinhado por palavra dentro do título, o que já é o suficiente
+  para encontrar o título certo.
+- **O limiar é um `>= 0.3` literal, não o operador `<%`.** O operador de
+  `word_similarity` depende do parâmetro `pg_trgm.word_similarity_threshold`
+  (padrão 0.6), e o Supabase recusa uma função que tente ajustá-lo
+  (`permission denied to set parameter`). A comparação direta com o valor de
+  retorno da função contorna isso ao custo de não usar o índice GIN nesse
+  passo — aceitável porque ele só roda depois que a busca por palavra-chave,
+  essa sim indexada, já não encontrou nada.
+
+Nenhum filtro é obrigatório nas duas funções — sem palavra e sem filtro
+nenhum, cada uma lista o mais recente. Filtrar sem digitar nada (por
+exemplo, só por nível) é, portanto, uma decisão de quem chama: `search()` em
+`src/features/search/queries.ts` só invoca `search_sources` quando o filtro
+dado realmente diz algo sobre fontes (`tag` ou tipo), e o mesmo vale ao
+contrário — sem essa checagem, filtrar por nível chamaria `search_sources`
+sem filtro nenhum e listaria toda fonte do acervo junto.
 
 ### Evolução possível
 

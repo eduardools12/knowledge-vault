@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
 
+import {
+  hasAnySearchFilter,
+  knowledgeFilterApplies,
+  sourceFilterApplies,
+} from "@/features/search/schemas";
 import { toPrefixTsQuery } from "@/lib/search";
 
 /**
@@ -67,5 +72,75 @@ describe("toPrefixTsQuery", () => {
   it("splits on punctuation rather than keeping it inside a term", () => {
     expect(toPrefixTsQuery("data-analysis")).toBe("data:* & analysis:*");
     expect(toPrefixTsQuery("xG, PPDA")).toBe("xg:* & ppda:*");
+  });
+});
+
+/**
+ * The search page decides whether to query at all, or show "digite algo para
+ * buscar", based on this. Forgetting a filter here when a new one is added
+ * would not crash — it would just query with an empty-looking filter set
+ * while the page silently shows the "nothing selected" empty state instead.
+ */
+describe("hasAnySearchFilter", () => {
+  it("is false when nothing is set", () => {
+    expect(hasAnySearchFilter({})).toBe(false);
+  });
+
+  it("is true for a bare keyword", () => {
+    expect(hasAnySearchFilter({ q: "pandas" })).toBe(true);
+  });
+
+  it("is true for each filter on its own, with no keyword", () => {
+    expect(hasAnySearchFilter({ area: "11111111-1111-4111-8111-111111111111" })).toBe(true);
+    expect(hasAnySearchFilter({ tag: "11111111-1111-4111-8111-111111111111" })).toBe(true);
+    expect(hasAnySearchFilter({ level: "discovered" })).toBe(true);
+    expect(hasAnySearchFilter({ status: "active" })).toBe(true);
+    expect(hasAnySearchFilter({ sourceType: "book" })).toBe(true);
+  });
+});
+
+/**
+ * Both `search_knowledge` and `search_sources` list everything when given
+ * neither a query nor a filter of their own — correct for "nothing was
+ * filtered at all", wrong for "filtered by level", which says nothing about
+ * sources. These two functions are what stop a knowledge-only filter from
+ * being sent to the sources search as "no filter, list everything" — get
+ * this wrong and picking a nível silently surfaces every source in the vault
+ * alongside it.
+ */
+describe("knowledgeFilterApplies / sourceFilterApplies", () => {
+  it("both apply to a bare keyword", () => {
+    expect(knowledgeFilterApplies({ q: "pandas" })).toBe(true);
+    expect(sourceFilterApplies({ q: "pandas" })).toBe(true);
+  });
+
+  it("both apply to a tag, since either entity can carry one", () => {
+    const tag = "11111111-1111-4111-8111-111111111111";
+
+    expect(knowledgeFilterApplies({ tag })).toBe(true);
+    expect(sourceFilterApplies({ tag })).toBe(true);
+  });
+
+  it("a knowledge-only filter does not apply to sources", () => {
+    const area = "11111111-1111-4111-8111-111111111111";
+
+    expect(knowledgeFilterApplies({ area })).toBe(true);
+    expect(sourceFilterApplies({ area })).toBe(false);
+
+    expect(knowledgeFilterApplies({ level: "discovered" })).toBe(true);
+    expect(sourceFilterApplies({ level: "discovered" })).toBe(false);
+
+    expect(knowledgeFilterApplies({ status: "active" })).toBe(true);
+    expect(sourceFilterApplies({ status: "active" })).toBe(false);
+  });
+
+  it("a source-only filter does not apply to knowledge", () => {
+    expect(sourceFilterApplies({ sourceType: "book" })).toBe(true);
+    expect(knowledgeFilterApplies({ sourceType: "book" })).toBe(false);
+  });
+
+  it("neither applies when nothing was given", () => {
+    expect(knowledgeFilterApplies({})).toBe(false);
+    expect(sourceFilterApplies({})).toBe(false);
   });
 });

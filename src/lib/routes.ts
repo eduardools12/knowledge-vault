@@ -21,6 +21,7 @@ export const ROUTES = {
   authError: "/auth/error",
 
   dashboard: "/dashboard",
+  search: "/busca",
   inbox: "/inbox",
   knowledge: "/conhecimentos",
   sources: "/fontes",
