@@ -4,12 +4,19 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import { listAreas } from "@/features/areas/queries";
+import { suggestKnowledgeFromInboxItem } from "@/features/inbox/ai-suggestion";
+import type { KnowledgeSuggestion, SuggestionState } from "@/features/inbox/ai-suggestion-prompt";
+import { getInboxItemById } from "@/features/inbox/queries";
 import { inboxCaptureSchema, inboxItemFormSchema } from "@/features/inbox/schemas";
 import { isOwnedPath } from "@/features/inbox/storage-path";
 import { removeFile } from "@/features/inbox/storage";
 import { insertKnowledge, replaceKnowledgeSources, replaceKnowledgeTags } from "@/features/knowledge/actions";
 import { knowledgeFormSchema } from "@/features/knowledge/schemas";
+import { search } from "@/features/search/queries";
+import { listTags } from "@/features/tags/queries";
 import { requireUser } from "@/lib/auth/dal";
+import { AiBudgetExceededError, AiConfigError, AiError, AiRateLimitError } from "@/lib/ai/errors";
 import { INBOX_STATUSES } from "@/lib/domain";
 import { formError, formSuccess, parseFormData, type FormState } from "@/lib/forms";
 import { ROUTES } from "@/lib/routes";
@@ -254,4 +261,82 @@ export async function processInboxItemAction(
   revalidatePath(ROUTES.dashboard);
   revalidateInbox(inboxItemId.data);
   redirect(`${ROUTES.knowledge}/${inserted.id}`);
+}
+
+/** Most-specific-first, same chain `src/lib/ai/errors.ts` recommends catching. */
+function translateAiError(error: unknown): string {
+  if (error instanceof AiBudgetExceededError) {
+    return "Esta sugestão custaria mais do que o limite configurado. Tente reduzir o conteúdo, ou volte mais tarde.";
+  }
+
+  if (error instanceof AiRateLimitError) {
+    return "Muitas chamadas de IA em pouco tempo. Aguarde um instante e tente novamente.";
+  }
+
+  if (error instanceof AiConfigError) {
+    console.error("[inbox] AI misconfigured:", (error as Error).message);
+
+    return "A IA não está configurada neste ambiente.";
+  }
+
+  if (error instanceof AiError) {
+    console.error("[inbox] AI suggestion failed:", (error as Error).message);
+
+    return "Não foi possível gerar uma sugestão agora. Tente novamente.";
+  }
+
+  console.error("[inbox] AI suggestion failed unexpectedly:", error);
+
+  return "Não foi possível gerar uma sugestão agora. Tente novamente.";
+}
+
+/**
+ * Asks the model to propose a title, summary, level, area and tags for an
+ * inbox item — never writes anything. The suggestion only ever reaches
+ * `knowledge` if the user reviews it in the form and submits
+ * `processInboxItemAction` themselves, per docs/ai.md's "IA sugere; o usuário
+ * decide".
+ */
+export async function suggestKnowledgeFromInboxItemAction(
+  _prevState: SuggestionState,
+  formData: FormData,
+): Promise<SuggestionState> {
+  const user = await requireUser();
+
+  const itemId = idSchema.safeParse(formData.get("itemId"));
+
+  if (!itemId.success) {
+    return { status: "error", message: "Item inválido." };
+  }
+
+  const item = await getInboxItemById(itemId.data);
+
+  if (!item) {
+    return { status: "error", message: "Este item não existe mais." };
+  }
+
+  const [areas, tags] = await Promise.all([listAreas(), listTags()]);
+  const areaOptions = areas.map((area) => ({ id: area.id, name: area.name }));
+  const tagOptions = tags.map((tag) => ({ id: tag.id, name: tag.name }));
+
+  let suggestion: KnowledgeSuggestion;
+
+  try {
+    suggestion = await suggestKnowledgeFromInboxItem(user.id, item, areaOptions, tagOptions);
+  } catch (error) {
+    return { status: "error", message: translateAiError(error) };
+  }
+
+  // A likely-duplicate check, done with the search Etapa 8 already built
+  // (ranked keyword match, trigram fallback) rather than a second AI call —
+  // cheaper, and it is exactly the tool built for "does something like this
+  // already exist".
+  const results = await search({ q: suggestion.title });
+  const topHit = results.knowledge[0];
+
+  return {
+    status: "success",
+    suggestion,
+    possibleDuplicate: topHit ? { id: topHit.id, title: topHit.title } : null,
+  };
 }

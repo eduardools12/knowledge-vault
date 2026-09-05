@@ -20,7 +20,7 @@ cp .env.example .env.local
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | sim | Chave anônima/publicável — segura no browser, limitada por RLS |
 | `NEXT_PUBLIC_SITE_URL` | em produção | Origem usada nos links dos e-mails de confirmação e recuperação |
 | `SUPABASE_SERVICE_ROLE_KEY` | não (Etapa 11) | Ignora RLS. Só em job de servidor. **Nunca** com prefixo `NEXT_PUBLIC_` |
-| `ANTHROPIC_API_KEY` | não (Etapa 10) | Lida só por `src/lib/ai/anthropic-provider.ts`. **Nunca** com prefixo `NEXT_PUBLIC_` |
+| `ANTHROPIC_API_KEY` | não | Sem ela, "Sugerir com IA" na Inbox mostra um erro amigável em vez de quebrar — o resto do app funciona normalmente. Lida só por `src/lib/ai/anthropic-provider.ts`. **Nunca** com prefixo `NEXT_PUBLIC_` |
 
 As variáveis são validadas por Zod em `src/lib/env.ts` no carregamento do
 módulo. Configuração faltando falha na hora, com mensagem legível, em vez de
@@ -123,6 +123,9 @@ Vitest, ambiente Node. A suíte cobre as funções puras e críticas:
   caso usada antes de qualquer chamada de IA sair.
 - `tests/ai-rate-limit.test.ts` — a janela deslizante do limitador de taxa:
   permite até o limite, esquece chamadas antigas, isola por usuário.
+- `tests/inbox-ai-suggestion.test.ts` — o prompt de sugestão (lista áreas e
+  tags oferecidas, cai num placeholder sem conteúdo) e o filtro de defesa que
+  descarta qualquer área/tag que o modelo alucine fora do que foi oferecido.
 - `tests/integration/rls.test.ts` — RLS pela API real (veja abaixo).
 
 ```bash

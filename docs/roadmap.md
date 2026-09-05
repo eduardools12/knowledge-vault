@@ -221,10 +221,39 @@ diz algo sobre aquele lado.
   próprio build do Next.js, então essas peças são verificadas por leitura e
   pela primeira feature real que as usar (Etapa 10), não por teste unitário.
 
-## Etapa 10 — IA para processamento de conteúdo
+## ✅ Etapa 10 — IA para processamento de conteúdo
 
-Resumo, extração de conceitos, sugestão de área e tags, detecção de duplicata.
-Sempre com revisão do usuário antes de salvar.
+- Botão "Sugerir com IA" na página que transforma um item da Inbox em
+  conhecimento (`/inbox/[id]/processar`): pede um título, um resumo, o nível
+  de maturidade, e escolhe entre as áreas e tags **já cadastradas** — nunca
+  inventa uma nova, e a resposta é obrigada a ter esse formato (structured
+  outputs, não "peça JSON e torça").
+- A sugestão nunca grava em `knowledge`. Ela volta como parâmetros na própria
+  URL da página, que já sabe renderizar o formulário de criação pré-preenchido
+  — o mesmo formulário, os mesmos campos editáveis, só que com valores de
+  partida diferentes. Nada é salvo até o usuário revisar e confirmar "Criar
+  conhecimento", exatamente como preenchendo à mão.
+- Detecção de duplicata provável reaproveita a busca ranqueada da Etapa 8
+  (`search_knowledge`) em vez de uma segunda chamada de IA: busca pelo título
+  sugerido, e se algo aparecer, mostra um aviso com link antes de criar outro
+  registro parecido.
+- Extração de conceitos deliberadamente não virou "escrever o conteúdo por
+  você" — a sugestão estrutura metadados (título, resumo, nível, área, tags);
+  o corpo do conhecimento continua vindo do que o usuário realmente escreveu
+  na captura. Gerar prosa é um escopo maior, com risco de alucinação mais
+  difícil de revisar num relance — fica de fora por decisão, não por
+  esquecimento.
+- 9 testes novos (193 no total), sobre a montagem do prompt e o filtro de
+  defesa em profundidade que descarta qualquer id que o modelo tenha
+  inventado — o schema garante o formato, não que o id realmente exista.
+
+Verificado sem uma chamada real ao modelo (nenhuma chave de API disponível
+neste ambiente): o caminho de erro é real e foi observado no navegador — sem
+`ANTHROPIC_API_KEY`, o botão mostra "A IA não está configurada neste
+ambiente" em vez de quebrar a página, provando que toda a cadeia (ação →
+`src/lib/ai` → tradução de erro → UI) está de fato conectada. O
+pré-preenchimento do formulário e o aviso de duplicata foram verificados
+construindo a URL que o botão geraria após uma sugestão bem-sucedida.
 
 ## Etapa 11 — Embeddings e busca semântica
 

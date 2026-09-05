@@ -4,18 +4,25 @@ import { AnthropicProvider } from "@/lib/ai/anthropic-provider";
 import { AiBudgetExceededError } from "@/lib/ai/errors";
 import { estimateMaxCost, isPricedModel } from "@/lib/ai/pricing";
 import { aiRateLimiter, type RateLimiter } from "@/lib/ai/rate-limit";
-import type { AiCompletionRequest, AiCompletionResult, AiProvider } from "@/lib/ai/types";
+import type {
+  AiCompletionRequest,
+  AiCompletionResult,
+  AiProvider,
+  AiStructuredRequest,
+  AiStructuredResult,
+} from "@/lib/ai/types";
 
 /**
- * The one function a feature should call to reach an LLM — never a provider
+ * The functions a feature should call to reach an LLM — never a provider
  * class directly, and never `@anthropic-ai/sdk`. See docs/ai.md: this seam is
  * what keeps model access in one place instead of spread across the app, and
  * what makes a rate limit or a cost ceiling something enforced once instead
  * of something every call site has to remember on its own.
  *
- * Callers already did `requireUser()` per the app's three-layer auth — this
- * takes the resolved `userId`, not a session, so it has no auth dependency of
- * its own and stays trivial to call with a fake provider in a test.
+ * Callers already did `requireUser()` per the app's three-layer auth — these
+ * take the resolved `userId`, not a session, so this module has no auth
+ * dependency of its own and stays trivial to call with a fake provider in a
+ * test.
  */
 
 /**
@@ -34,6 +41,34 @@ function getDefaultProvider(): AiProvider {
   return defaultProvider;
 }
 
+/**
+ * A pre-flight ceiling, checked before any network call: cost is a limit, not
+ * something only observed after the fact. A model this app has no price for
+ * is let through unchecked rather than blocked on a technicality — the real
+ * cost, computed from actual usage, is still always returned by the provider.
+ */
+function assertWithinBudget(
+  provider: AiProvider,
+  messages: { content: string }[],
+  system: string | undefined,
+  maxTokens: number,
+  maxCostUsd: number,
+): void {
+  if (!isPricedModel(provider.model)) {
+    return;
+  }
+
+  const inputText = [system ?? "", ...messages.map((message) => message.content)].join("\n");
+  const estimatedMaxCost = estimateMaxCost(provider.model, inputText, maxTokens);
+
+  if (estimatedMaxCost > maxCostUsd) {
+    throw new AiBudgetExceededError(
+      `Esta chamada custaria até ~$${estimatedMaxCost.toFixed(4)}, acima do limite de ` +
+        `$${maxCostUsd.toFixed(4)}. Reduza maxTokens ou informe um maxCostUsd maior.`,
+    );
+  }
+}
+
 export async function completeWithAi(
   userId: string,
   request: AiCompletionRequest,
@@ -45,21 +80,24 @@ export async function completeWithAi(
   const provider = options?.provider ?? getDefaultProvider();
   const maxCostUsd = request.maxCostUsd ?? DEFAULT_MAX_COST_USD;
 
-  // A pre-flight ceiling, checked before any network call: cost is a limit,
-  // not something only observed after the fact. A model this app has no
-  // price for is let through unchecked rather than blocked on a technicality
-  // — the real cost, computed from actual usage, is still always returned.
-  if (isPricedModel(provider.model)) {
-    const inputText = [request.system ?? "", ...request.messages.map((message) => message.content)].join("\n");
-    const estimatedMaxCost = estimateMaxCost(provider.model, inputText, request.maxTokens);
-
-    if (estimatedMaxCost > maxCostUsd) {
-      throw new AiBudgetExceededError(
-        `Esta chamada custaria até ~$${estimatedMaxCost.toFixed(4)}, acima do limite de ` +
-          `$${maxCostUsd.toFixed(4)}. Reduza maxTokens ou informe um maxCostUsd maior.`,
-      );
-    }
-  }
+  assertWithinBudget(provider, request.messages, request.system, request.maxTokens, maxCostUsd);
 
   return provider.complete(request);
+}
+
+/** Same shape as `completeWithAi`, for a completion constrained to a Zod schema. */
+export async function completeStructuredWithAi<T>(
+  userId: string,
+  request: AiStructuredRequest<T>,
+  options?: { provider?: AiProvider; rateLimiter?: RateLimiter },
+): Promise<AiStructuredResult<T>> {
+  const rateLimiter = options?.rateLimiter ?? aiRateLimiter;
+  rateLimiter.check(userId);
+
+  const provider = options?.provider ?? getDefaultProvider();
+  const maxCostUsd = request.maxCostUsd ?? DEFAULT_MAX_COST_USD;
+
+  assertWithinBudget(provider, request.messages, request.system, request.maxTokens, maxCostUsd);
+
+  return provider.completeStructured(request);
 }

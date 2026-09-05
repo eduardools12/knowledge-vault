@@ -71,11 +71,17 @@ export function KnowledgeForm({
   /** Absent when creating. */
   knowledge?: KnowledgeDetail;
   /**
-   * Starting title and content for a fresh record that did not come from
-   * nothing — an inbox item being turned into knowledge. Ignored once
-   * `knowledge` is set: an edit always starts from the record itself.
+   * Starting values for a fresh record that did not come from nothing — an
+   * inbox item being turned into knowledge, plain or AI-suggested. Ignored
+   * once `knowledge` is set: an edit always starts from the record itself.
    */
-  initialValues?: { title?: string | null; content?: KnowledgeDocument };
+  initialValues?: {
+    title?: string | null;
+    content?: KnowledgeDocument;
+    summary?: string | null;
+    level?: KnowledgeLevel;
+    areaId?: string | null;
+  };
   areaOptions: AreaOption[];
   submitLabel: string;
   tagPicker: React.ReactNode;
@@ -116,7 +122,7 @@ export function KnowledgeForm({
         {(field) => (
           <Textarea
             name="summary"
-            defaultValue={knowledge?.summary ?? ""}
+            defaultValue={knowledge?.summary ?? initialValues?.summary ?? ""}
             placeholder="O que isso é, em poucas palavras."
             rows={3}
             maxLength={2000}
@@ -128,14 +134,17 @@ export function KnowledgeForm({
       <div className="grid gap-6 sm:grid-cols-2">
         <Field
           label="Nível de conhecimento"
-          hint={KNOWLEDGE_LEVEL_META[(knowledge?.level ?? "discovered") as KnowledgeLevel].description}
+          hint={
+            KNOWLEDGE_LEVEL_META[(knowledge?.level ?? initialValues?.level ?? "discovered") as KnowledgeLevel]
+              .description
+          }
           errors={state.fieldErrors?.level}
         >
           {(field) => (
             <Select
               name="level"
               items={LEVEL_ITEMS}
-              defaultValue={knowledge?.level ?? "discovered"}
+              defaultValue={knowledge?.level ?? initialValues?.level ?? "discovered"}
             >
               <SelectTrigger id={field.id} aria-describedby={field["aria-describedby"]}>
                 <SelectValue />
@@ -178,7 +187,7 @@ export function KnowledgeForm({
         label="Área"
         hint="Opcional. A grande categoria em que este conhecimento se encaixa."
         options={areaOptions}
-        defaultValue={knowledge?.area?.id}
+        defaultValue={knowledge?.area?.id ?? initialValues?.areaId}
         errors={state.fieldErrors?.areaId}
       />
 

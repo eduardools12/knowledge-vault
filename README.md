@@ -12,12 +12,14 @@ capturar → organizar → compreender → relacionar → consultar → aplicar
 
 ## Estado atual
 
-**Etapas 1 a 9 concluídas** — arquitetura, banco, autenticação, casca da
+**Etapas 1 a 10 concluídas** — arquitetura, banco, autenticação, casca da
 aplicação, dashboard, CRUD de conhecimentos com editor rico, áreas, tags e
 fontes com upload de arquivo, a Inbox de captura rápida com fila de
 processamento, relacionamentos entre conhecimentos, projetos com vínculo a
-conhecimentos, busca global ranqueada com fallback trigram, e a fundação de
-acesso a IA (sem feature visível ainda), tudo verificado ponta a ponta.
+conhecimentos, busca global ranqueada com fallback trigram, a fundação de
+acesso a IA, e a primeira feature sobre ela — sugestão de título, resumo,
+nível, área e tags ao transformar um item da Inbox em conhecimento, com
+detecção de duplicata provável — tudo verificado ponta a ponta.
 
 O banco já contempla o produto inteiro (grafo, revisão espaçada, embeddings,
 projetos), mesmo que a interface ainda cubra pouco dele. Isso é intencional:
@@ -124,7 +126,7 @@ src/
 │   ├── areas/             CRUD, árvore e guarda de ciclo da hierarquia
 │   ├── tags/              CRUD e criação rápida em lote
 │   ├── sources/           CRUD, upload direto ao Storage e caminho assinado
-│   ├── inbox/             Captura rápida, fila de estados e transformação em conhecimento
+│   ├── inbox/             Captura rápida, fila de estados, transformação em conhecimento e sugestão por IA
 │   ├── relations/         Arestas do grafo entre conhecimentos, com direção e tipo
 │   ├── projects/          CRUD de projetos e vínculo com conhecimentos, com nota por par
 │   └── search/            Busca global ranqueada, com filtros combinados e fallback trigram

@@ -1,10 +1,17 @@
 import "server-only";
 
 import Anthropic from "@anthropic-ai/sdk";
+import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 
 import { AiConfigError, AiProviderError, AiRateLimitError } from "@/lib/ai/errors";
 import { costForUsage, isPricedModel } from "@/lib/ai/pricing";
-import type { AiCompletionRequest, AiCompletionResult, AiProvider } from "@/lib/ai/types";
+import type {
+  AiCompletionRequest,
+  AiCompletionResult,
+  AiProvider,
+  AiStructuredRequest,
+  AiStructuredResult,
+} from "@/lib/ai/types";
 import { getServerEnv } from "@/lib/env";
 
 /**
@@ -78,6 +85,37 @@ export class AnthropicProvider implements AiProvider {
       // Falls back to 0 rather than throwing: a model this app does not have
       // a price for yet should not make an otherwise-successful call fail —
       // it should just be missing from whatever adds these numbers up later.
+      costUsd: isPricedModel(response.model) ? costForUsage(response.model, usage) : 0,
+    };
+  }
+
+  async completeStructured<T>(request: AiStructuredRequest<T>): Promise<AiStructuredResult<T>> {
+    const client = getClient();
+
+    let response;
+
+    try {
+      response = await client.messages.parse({
+        model: this.model,
+        max_tokens: request.maxTokens,
+        system: request.system,
+        messages: request.messages.map((message) => ({ role: message.role, content: message.content })),
+        output_config: { format: zodOutputFormat(request.schema) },
+      });
+    } catch (error) {
+      throw translateError(error);
+    }
+
+    if (response.parsed_output === null) {
+      throw new AiProviderError("O modelo não retornou uma resposta no formato esperado.");
+    }
+
+    const usage = { inputTokens: response.usage.input_tokens, outputTokens: response.usage.output_tokens };
+
+    return {
+      data: response.parsed_output,
+      model: response.model,
+      usage,
       costUsd: isPricedModel(response.model) ? costForUsage(response.model, usage) : 0,
     };
   }

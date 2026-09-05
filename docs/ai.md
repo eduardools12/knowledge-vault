@@ -1,9 +1,11 @@
 # Inteligência artificial
 
 > A Etapa 9 construiu a fundação (interface de acesso a modelo, controle de
-> custo, tratamento de erro, limite de taxa) sem nenhuma feature visível. Este
+> custo, tratamento de erro, limite de taxa) sem nenhuma feature visível. A
+> Etapa 10 construiu a primeira feature sobre ela: sugestão de título, resumo,
+> nível, área e tags ao transformar um item da Inbox em conhecimento. Este
 > documento registra a estratégia completa e o que já existe — no schema desde
-> a Etapa 1, na aplicação desde a Etapa 9 — para que as Etapas 10–12 sejam
+> a Etapa 1, na aplicação desde a Etapa 9 — para que as Etapas 11–12 sejam
 > construção sobre isso, não redesenho.
 
 ## Princípio
@@ -29,10 +31,32 @@ Consequências de design que decorrem disso:
 
 ## Onde a IA entra
 
-**Etapa 10 — processamento de conteúdo**
+**✅ Etapa 10 — processamento de conteúdo**
 
-Sobre um item da Inbox ou uma fonte: resumir, extrair conceitos, sugerir área e
-tags, propor um rascunho estruturado, detectar duplicata provável.
+Construído: sobre um item da Inbox, resumir, sugerir área e tags (só entre as
+já cadastradas), sugerir o nível de maturidade, e detectar duplicata provável
+reaproveitando a busca ranqueada da Etapa 8. Detalhes em
+[`src/features/inbox/ai-suggestion.ts`](../src/features/inbox/ai-suggestion.ts)
+e [`ai-suggestion-prompt.ts`](../src/features/inbox/ai-suggestion-prompt.ts).
+
+Duas reduções de escopo deliberadas, não esquecimentos:
+
+- **Só sobre um item da Inbox, não sobre uma fonte.** O ponto de entrada mais
+  central e o que a Etapa 5 já deixou pronto (a página de "transformar em
+  conhecimento"); resumir uma fonte é uma extensão natural, mas de um
+  formulário diferente, e ficou para quando fizer sentido por si.
+- **"Rascunho estruturado" virou metadados, não prosa.** A sugestão preenche
+  título, resumo, nível, área e tags; o corpo do conhecimento continua vindo
+  do texto que o usuário realmente capturou. Gerar o conteúdo em si é um
+  escopo maior — mais tokens, mais risco de alucinação, e um texto longo é
+  mais difícil de revisar num relance do que meia dúzia de campos curtos.
+- **Nenhuma marca persistente de "isto veio da IA".** O princípio geral acima
+  pede isso para conteúdo de IA em geral, mas aqui o usuário já revisa e
+  frequentemente edita cada campo antes de "Criar conhecimento" — o mesmo
+  botão, a mesma validação de uma criação manual. Uma coluna de proveniência
+  em `knowledge` fica para quando uma feature futura precisar mostrá-la (por
+  exemplo, uma tela de "revisar sugestões pendentes" de verdade), não como
+  extensão de schema não usada por ninguém ainda.
 
 **Etapa 11 — embeddings e busca semântica**
 
@@ -91,9 +115,16 @@ src/lib/ai/
 │                           memória
 ├── anthropic-provider.ts   A única implementação de `AiProvider` hoje, e o
 │                           único arquivo que importa o SDK da Anthropic
-└── client.ts               `completeWithAi(userId, request)` — a função que
-                            toda feature deve chamar
+└── client.ts               completeWithAi / completeStructuredWithAi —
+                            as funções que toda feature deve chamar
 ```
+
+**Duas formas de completude, uma única porta de entrada.** `completeWithAi`
+devolve texto livre; `completeStructuredWithAi` devolve um objeto validado
+contra um schema Zod (`output_config.format` da Anthropic — a API recusa
+qualquer resposta fora do formato, em vez de a aplicação pedir JSON no prompt
+e torcer). A Etapa 10 só precisou da segunda: uma sugestão de conhecimento é
+sempre `{title, summary, level, areaId, tagIds}`, nunca uma frase solta.
 
 **Custo é um limite, verificado antes da chamada, não uma métrica só
 observada depois.** `completeWithAi` estima o pior caso — todo caractere do

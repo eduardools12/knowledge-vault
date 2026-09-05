@@ -16,15 +16,18 @@ export function SubmitButton({
   children,
   pendingLabel,
   className,
+  variant,
 }: {
   children: React.ReactNode;
   pendingLabel?: string;
   className?: string;
+  /** Defaults to the primary style; pass `"outline"` for a secondary action in the same form. */
+  variant?: React.ComponentProps<typeof Button>["variant"];
 }) {
   const { pending } = useFormStatus();
 
   return (
-    <Button type="submit" className={className} disabled={pending} aria-busy={pending}>
+    <Button type="submit" variant={variant} className={className} disabled={pending} aria-busy={pending}>
       {pending ? (
         <>
           <Loader2Icon className="size-4 animate-spin" aria-hidden="true" />
