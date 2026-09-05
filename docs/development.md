@@ -96,7 +96,8 @@ Vitest, ambiente Node. A suíte cobre as funções puras e críticas:
 - `tests/dashboard-insights.test.ts` — quais frases o dashboard mostra e a
   concordância de número em português.
 - `tests/dates.test.ts` — datas relativas em pt-BR, incluindo o arredondamento
-  que não pode transformar 25 horas em "há 2 dias".
+  que não pode transformar 25 horas em "há 2 dias", e que uma data simples
+  (`"YYYY-MM-DD"`) não muda de dia conforme o fuso do servidor.
 - `tests/knowledge-document.test.ts` — sanitização do documento do editor. É o
   que separa um payload enviado à mão do HTML que o servidor vai renderizar.
 - `tests/search.test.ts` — conversão da busca em `tsquery`. Operador não
@@ -112,6 +113,9 @@ Vitest, ambiente Node. A suíte cobre as funções puras e críticas:
 - `tests/relations-schemas.test.ts` — qual id vira `from_id` e qual vira
   `to_id` a partir da direção escolhida. Inverter isso não trava nada; só
   guarda toda relação com os dois lados trocados.
+- `tests/projects-schemas.test.ts` — que a data de término de um projeto não
+  pode vir antes da de início, a mesma regra que `projects_date_order` já
+  impõe no banco.
 - `tests/integration/rls.test.ts` — RLS pela API real (veja abaixo).
 
 ```bash
@@ -212,3 +216,10 @@ projeto correspondente.
   `user_id` incluso. Use um trigger `BEFORE DELETE` que zera só a coluna certa.
   Contexto completo em
   [architecture.md](architecture.md#a-armadilha-do-on-delete-set-null-composto).
+- Uma coluna `date` (sem hora) sempre passa por `formatDate`, nunca por
+  `new Date(valor)` direto num componente. `formatDate` trata `"YYYY-MM-DD"`
+  como um dia de calendário; `new Date` sozinho o lê como meia-noite UTC, que
+  `Intl.DateTimeFormat` exibe no fuso do servidor — um dia a menos em qualquer
+  fuso a oeste de UTC. Encontrado na Etapa 7 com `started_at`/`ended_at` de
+  projetos; afetava `published_at` de fontes desde a Etapa 4 sem ter sido
+  notado.

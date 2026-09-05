@@ -79,6 +79,26 @@ describe("formatDate", () => {
   it("returns an empty string for an invalid value", () => {
     expect(formatDate("qualquer coisa")).toBe("");
   });
+
+  it("keeps a plain calendar date as-is, regardless of the server's timezone", () => {
+    // `published_at`, `started_at` and `ended_at` are `date` columns: a bare
+    // "2026-08-01" names a day, not an instant. Parsed as a plain `Date`, it
+    // becomes UTC midnight, which `Intl.DateTimeFormat` then renders in the
+    // server's local zone — anywhere west of UTC, that silently prints
+    // "31 de jul." for a date stored as August 1st.
+    const result = formatDate("2026-08-01");
+
+    expect(result).toContain("01");
+    expect(result).not.toContain("31");
+  });
+
+  it("still parses a full timestamp as an instant, not as a plain date", () => {
+    // Unlike a bare date, a full timestamp names a real moment — rendering it
+    // in the server's local zone is the app's accepted behaviour (see
+    // architecture.md), so this only checks the plain-date fast path is not
+    // mistakenly applied to it.
+    expect(formatDate("2026-01-01T12:00:00.000Z")).not.toBe("");
+  });
 });
 
 describe("toDateTimeAttribute", () => {

@@ -111,6 +111,19 @@ faz duas consultas em vez de uma por isso: uma por `from_id` embutindo o `to`,
 outra por `to_id` embutindo o `from`, cada uma com o alias `knowledge` para
 que as duas voltem no mesmo formato.
 
+### `projects` e `knowledge_projects`
+
+Um projeto é onde o conhecimento é aplicado. O vínculo com `knowledge` carrega
+uma nota por par — como aquele conhecimento foi usado ali — o que não cabe num
+seletor de checkboxes como o de tags: cada marcação precisaria do seu próprio
+campo de texto. Por isso o vínculo é gerenciado na página do próprio projeto
+(criar, remover e anotar), não no formulário de conhecimento; a página do
+conhecimento só lê o outro lado, sem editá-lo.
+
+A chave primária de `knowledge_projects` é o par `(knowledge_id, project_id)`,
+não um `id` próprio — diferente de `knowledge_relations`. Remover um vínculo
+específico exige as duas colunas na cláusula `where`, não um único id.
+
 ### `reviews`
 
 Log append-only. É a fonte da verdade; os contadores em `knowledge` são cache

@@ -64,9 +64,26 @@ export function formatRelativeTime(iso: string, now: Date = new Date()): string 
   return relativeFormatter.format(Math.trunc(diff / size), unit);
 }
 
-/** "04 de set. de 2026" — used where an exact date matters more than recency. */
+/** A bare `YYYY-MM-DD`, with no time or zone of its own. */
+const PLAIN_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/**
+ * "04 de set. de 2026" — used where an exact date matters more than recency.
+ *
+ * A plain calendar date (`published_at`, a project's `started_at`/`ended_at`)
+ * names a day, not an instant. Handed straight to `Date`, it parses as UTC
+ * midnight, and `Intl.DateTimeFormat` then renders that instant in the
+ * server's local zone — which silently shifts the displayed day backward
+ * everywhere west of UTC. Building the date from its parts instead keeps a
+ * calendar date exactly the day it was stored as, regardless of server
+ * timezone. A full timestamp (`created_at` and the like) still goes through
+ * plain `Date` parsing, unaffected.
+ */
 export function formatDate(iso: string): string {
-  const date = new Date(iso);
+  const plain = PLAIN_DATE.exec(iso);
+  const date = plain
+    ? new Date(Number(plain[1]), Number(plain[2]) - 1, Number(plain[3]))
+    : new Date(iso);
 
   return Number.isNaN(date.getTime()) ? "" : absoluteFormatter.format(date);
 }

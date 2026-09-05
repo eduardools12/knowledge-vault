@@ -140,10 +140,35 @@ chaves estrangeiras para a mesma tabela (`from_id` e `to_id`, ambas para
 ambiguidade. Detalhes em
 [database.md](database.md#knowledge_relations).
 
-## Etapa 7 — Projetos
+## ✅ Etapa 7 — Projetos
 
-CRUD e vínculo com conhecimentos. Responde *"o que usei neste projeto?"* e *"em
-que projetos usei isto?"*.
+- CRUD completo, com nome, descrição, status (ideia, em andamento, pausado,
+  concluído, arquivado) e período — mesmo padrão de slug único por usuário de
+  áreas e tags.
+- Vínculo com conhecimentos gerenciado a partir da página do projeto: escolher
+  um conhecimento e anotar como ele foi usado ali. Diferente de tags e fontes,
+  esse vínculo carrega uma nota por par, o que não cabe num seletor de
+  checkboxes compartilhado — por isso vive na página do projeto, não no
+  formulário de conhecimento.
+- Responde as duas perguntas do roadmap: a página do projeto lista *"o que usei
+  aqui"*; a página do conhecimento ganha uma seção "Projetos" somente leitura
+  respondendo *"em que projetos usei isto"*.
+- Sem migração nova: `projects` e `knowledge_projects` já existiam desde a
+  Etapa 1, "projects" já estava na lista de tabelas com slug único desde a
+  Etapa 4.
+- 6 testes novos (163 no total), sobre a checagem de que a data de término não
+  vem antes da de início — a mesma regra que a constraint `projects_date_order`
+  já impõe no banco.
+
+**Bug real encontrado e corrigido durante a verificação:** `formatDate`
+recebia uma data simples (`"2026-08-01"`, sem hora) e a interpretava como
+meia-noite UTC; `Intl.DateTimeFormat` então renderizava esse instante no fuso
+local do servidor, exibindo o dia anterior em qualquer fuso a oeste de UTC —
+"31 de jul." para uma data salva como 1º de agosto. Afetava `started_at` e
+`ended_at` de projetos e, desde a Etapa 4, `published_at` de fontes, sem ter
+sido notado porque nada comparava a data exibida com a digitada. Corrigido
+tratando uma data no formato `YYYY-MM-DD` como um dia de calendário, não um
+instante; um timestamp completo continua se comportando como antes.
 
 ## Etapa 8 — Busca avançada
 

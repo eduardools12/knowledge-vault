@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { KnowledgeActions } from "@/features/knowledge/components/knowledge-actions";
 import { RenderedContent } from "@/features/knowledge/components/rendered-content";
 import { getKnowledgeById, listKnowledgeOptions } from "@/features/knowledge/queries";
+import { listProjectsForKnowledge } from "@/features/projects/queries";
 import { RelationForm } from "@/features/relations/components/relation-form";
 import { RelationList } from "@/features/relations/components/relation-list";
 import { listRelationsForKnowledge } from "@/features/relations/queries";
@@ -38,9 +39,10 @@ export default async function KnowledgeDetailPage({ params }: PageProps) {
     notFound();
   }
 
-  const [relations, targetOptions] = await Promise.all([
+  const [relations, targetOptions, projects] = await Promise.all([
     listRelationsForKnowledge(id),
     listKnowledgeOptions(id),
+    listProjectsForKnowledge(id),
   ]);
 
   const now = new Date();
@@ -151,6 +153,40 @@ export default async function KnowledgeDetailPage({ params }: PageProps) {
 
       <Separator />
 
+      <section className="grid gap-3">
+        <h2 className="text-sm font-medium">
+          Projetos{projects.length > 0 ? ` (${projects.length})` : ""}
+        </h2>
+
+        {projects.length === 0 ? (
+          <p className="text-muted-foreground text-sm">
+            Nenhum projeto usa este conhecimento ainda.{" "}
+            <Link href={ROUTES.projects} className="underline underline-offset-4">
+              Vincular a partir de um projeto
+            </Link>
+            .
+          </p>
+        ) : (
+          <ul className="grid gap-px overflow-hidden rounded-lg border">
+            {projects.map((project) => (
+              <li key={project.id} className="bg-card px-4 py-2.5">
+                <Link
+                  href={`${ROUTES.projects}/${project.id}`}
+                  className="text-sm underline-offset-4 hover:underline"
+                >
+                  {project.name}
+                </Link>
+                {project.note ? (
+                  <p className="text-muted-foreground text-xs">{project.note}</p>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <Separator />
+
       <footer className="grid gap-4">
         <h2 className="text-sm font-medium">Histórico</h2>
 
@@ -178,13 +214,6 @@ export default async function KnowledgeDetailPage({ params }: PageProps) {
             iso={knowledge.nextReviewAt}
           />
         </dl>
-
-        {/*
-          Projects belong on this page too, and arrive with the stage that
-          builds them. Saying so is more useful than an empty section that
-          looks broken.
-        */}
-        <p className="text-muted-foreground text-xs">Projetos aparecem aqui a partir da Etapa 7.</p>
       </footer>
     </article>
   );
