@@ -298,10 +298,39 @@ como não configurada, mesmo se definida — e `/api/*` não estava isento do
 redirecionamento de sessão do proxy, o que teria bloqueado toda chamada do
 Vercel Cron antes mesmo de chegar à checagem de `CRON_SECRET`.
 
-## Etapa 12 — RAG
+## ✅ Etapa 12 — RAG
 
-Perguntas em linguagem natural sobre o acervo, com expansão de contexto pelo
-grafo e resposta citando os conhecimentos e fontes usados.
+- **"Perguntar à IA" dentro de `/busca`**, não uma página nova — a sidebar
+  fixou dez seções desde o início (README), e a pergunta já é sobre
+  exatamente os resultados visíveis ali. Um clique explícito, nunca disparado
+  pela digitação: a mesma contenção de custo do botão "Sugerir com IA" da
+  Etapa 10.
+- **Pipeline completo**: `search()` (Etapa 8 + 11) recupera candidatos por
+  palavra-chave e significado → os três melhores conhecimentos têm seus
+  vizinhos no grafo (`knowledge_relations`, Etapa 6) trazidos também → tudo é
+  empacotado até um teto de tokens, seed antes de vizinho → o modelo responde
+  em formato estruturado (`{answered, answer, citations}`) → cada citação é
+  filtrada contra os candidatos realmente oferecidos antes de virar um link
+  clicável.
+- **Sem chamada ao modelo quando não há nada para responder.** Busca vazia ou
+  contexto vazio após o corte por orçamento devolvem "não encontrei" na hora,
+  sem gastar uma chamada de IA.
+- **`describeAiError` extraído para `src/lib/ai/errors.ts`**, compartilhado
+  entre a Etapa 10 (sugestão da Inbox) e esta etapa — mesma cadeia de erros
+  para traduzir, mesma mensagem por tipo de falha; só a frase de erro genérico
+  variava entre as duas.
+- 14 testes novos (236 no total) sobre `selectContextCandidates` (empacota até
+  o teto, pula um candidato grande demais em vez de parar nele),
+  `buildRagPrompt` (contexto rotulado como dado, não instrução) e
+  `toOfferedResult` (descarta citação para um id nunca oferecido, mesmo padrão
+  de defesa de `keepOnlyOfferedIds` da Etapa 10).
+
+Verificado sem uma chave da Anthropic (mesma situação das Etapas 10 e 11): o
+caminho "nada encontrado" foi confirmado no navegador sem nenhuma chamada de
+IA (uma busca sem resultado algum); com um conhecimento de teste presente, o
+clique em "Perguntar à IA" percorreu toda a cadeia (busca → candidatos →
+`completeStructuredWithAi` → tradução de erro → UI) e mostrou "A IA não está
+configurada neste ambiente" em vez de quebrar a página.
 
 ## Etapa 13 — Knowledge Graph
 

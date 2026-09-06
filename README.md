@@ -12,15 +12,17 @@ capturar → organizar → compreender → relacionar → consultar → aplicar
 
 ## Estado atual
 
-**Etapas 1 a 11 concluídas** — arquitetura, banco, autenticação, casca da
+**Etapas 1 a 12 concluídas** — arquitetura, banco, autenticação, casca da
 aplicação, dashboard, CRUD de conhecimentos com editor rico, áreas, tags e
 fontes com upload de arquivo, a Inbox de captura rápida com fila de
 processamento, relacionamentos entre conhecimentos, projetos com vínculo a
 conhecimentos, busca global ranqueada com fallback trigram, a fundação de
 acesso a IA, sugestão de título/resumo/nível/área/tags ao transformar um item
-da Inbox em conhecimento, e busca híbrida — todo conhecimento e fonte é
+da Inbox em conhecimento, busca híbrida — todo conhecimento e fonte é
 indexado em vetores automaticamente e `/busca` combina palavra-chave com
-significado — tudo verificado ponta a ponta.
+significado — e RAG: um botão "Perguntar à IA" na própria busca, que responde
+citando os conhecimentos e fontes realmente usados, com expansão de contexto
+pelo grafo de relações — tudo verificado ponta a ponta.
 
 O banco já contempla o produto inteiro (grafo, revisão espaçada, embeddings,
 projetos), mesmo que a interface ainda cubra pouco dele. Isso é intencional:
@@ -132,7 +134,7 @@ src/
 │   ├── inbox/             Captura rápida, fila de estados, transformação em conhecimento e sugestão por IA
 │   ├── relations/         Arestas do grafo entre conhecimentos, com direção e tipo
 │   ├── projects/          CRUD de projetos e vínculo com conhecimentos, com nota por par
-│   └── search/            Busca híbrida (palavra-chave + semântica), com filtros combinados e fallback trigram
+│   └── search/            Busca híbrida (palavra-chave + semântica) e RAG ("Perguntar à IA"), com filtros combinados e fallback trigram
 ├── lib/
 │   ├── auth/dal.ts        Data Access Layer — checagem autoritativa de sessão
 │   ├── ai/                Acesso a LLM: provedor, custo, erro e limite de taxa

@@ -5,9 +5,12 @@
 > Etapa 10 construiu a primeira feature sobre ela: sugestão de título, resumo,
 > nível, área e tags ao transformar um item da Inbox em conhecimento. A Etapa
 > 11 indexou o acervo em vetores e tornou a busca híbrida — palavra-chave e
-> significado juntos. Este documento registra a estratégia completa e o que já
-> existe — no schema desde a Etapa 1, na aplicação desde a Etapa 9 — para que
-> a Etapa 12 (RAG) seja construção sobre isso, não redesenho.
+> significado juntos. A Etapa 12 fechou o ciclo: perguntar ao acervo em
+> linguagem natural e receber uma resposta que cita o que usou, construída
+> sobre a busca híbrida e o grafo de relações já existentes. Este documento
+> registra a estratégia completa e o que já existe — no schema desde a Etapa
+> 1, na aplicação desde a Etapa 9 — para que a Etapa 14 (revisão) seja
+> construção sobre isso, não redesenho.
 
 ## Princípio
 
@@ -111,21 +114,56 @@ Quatro decisões que valem registrar:
   a base curada, e fica para quando fizer sentido por si, mesma lógica das
   reduções de escopo da Etapa 10.
 
-**Etapa 12 — RAG**
+**✅ Etapa 12 — RAG**
 
-Perguntar ao próprio acervo:
+Construído: um botão "Perguntar à IA" dentro de `/busca` — não uma página
+própria; a sidebar tem dez seções fixas desde o início (README), e essa
+pergunta já é sobre exatamente os resultados visíveis na tela. Detalhes em
+[`src/features/search/rag.ts`](../src/features/search/rag.ts) e
+[`rag-prompt.ts`](../src/features/search/rag-prompt.ts).
 
 ```
-1. Busca híbrida recupera candidatos
-2. Expansão pelo grafo: conhecimentos vizinhos entram no contexto
-3. Monta o contexto respeitando o limite de tokens
-4. Consulta o modelo
-5. Responde citando os conhecimentos e fontes usados
+1. Busca híbrida recupera candidatos        → search() (Etapa 8 + 11), reaproveitada como está
+2. Expansão pelo grafo: vizinhos entram      → listRelationsForKnowledge (Etapa 6)
+3. Monta o contexto no limite de tokens      → selectContextCandidates
+4. Consulta o modelo                          → completeStructuredWithAi (Etapa 9)
+5. Responde citando o que usou                 → toOfferedResult
 ```
 
 O passo 2 é o que diferencia este RAG de um genérico sobre documentos: as
 arestas em `knowledge_relations` são curadoria humana, e um vizinho de grafo
 costuma ser mais relevante que o quinto resultado por similaridade de cosseno.
+Só os três primeiros conhecimentos da busca são expandidos, e no máximo quatro
+vizinhos entram — um custo de consulta que cresce com o número de vizinhos, não
+algo para deixar sem teto.
+
+Quatro decisões que valem registrar:
+
+- **Sem chamada ao modelo quando não há candidato.** Se a busca híbrida (que já
+  roda de qualquer forma para renderizar a página) não encontra nada, ou se
+  nada sobra depois do corte por orçamento de tokens, a resposta "não encontrei
+  isso no seu acervo" é devolvida direto — sem gastar uma chamada de IA para
+  dizer o óbvio.
+- **Saída estruturada com dois níveis de defesa.** `ragAnswerSchema`
+  (`{answered, answer, citations}`, via `completeStructuredWithAi`) garante que
+  toda citação tem o formato `{type, id}`, não que aquele id foi de fato
+  oferecido no contexto. `toOfferedResult` descarta qualquer citação para um id
+  que não estava entre os candidatos — mesmo padrão de defesa em profundidade
+  de `keepOnlyOfferedIds` na Etapa 10, agora contra um id inventado em vez de
+  uma área ou tag inventada.
+- **Contexto por trecho bruto, não pelo chunk que a busca semântica casou.**
+  Cada candidato entra no prompt como título + resumo/descrição + um trecho do
+  corpo (até um teto de caracteres), lido direto de `knowledge`/`sources` — não
+  o chunk específico de `embeddings` que a busca semântica encontrou. Mais
+  simples, e funciona mesmo para um registro que a busca só achou por palavra-
+  chave e nunca foi indexado (por exemplo, sem `OPENAI_API_KEY` configurada).
+  Selecionar o trecho exato do chunk mais relevante dentro de um documento
+  longo é um refinamento natural, não construído agora.
+- **Nunca escreve nada.** A resposta é lida, não salva — não existe uma tabela
+  de "perguntas feitas" nem um botão para transformar a resposta em
+  conhecimento. "IA sugere; o usuário decide" vale aqui como em toda parte:
+  cada citação é um link para o registro real, para o usuário conferir, não
+  para confiar cegamente.
 
 **Etapa 14 — revisão**
 
@@ -147,7 +185,11 @@ src/lib/ai/
 ├── errors.ts               Hierarquia própria (AiConfigError,
 │                           AiRateLimitError, AiBudgetExceededError,
 │                           AiProviderError) — quem chama nunca captura uma
-│                           exceção do SDK diretamente
+│                           exceção do SDK diretamente — e describeAiError,
+│                           que toda Server Action que chama a IA usa para
+│                           traduzir essa hierarquia numa mensagem em
+│                           português (Etapa 10 e Etapa 12 compartilham a
+│                           mesma função desde a Etapa 12)
 ├── pricing.ts               Preço por token, cálculo do custo real
 │                           (`costForUsage`) e a estimativa de pior caso usada
 │                           antes de qualquer chamada (`estimateMaxCost`)
@@ -255,7 +297,8 @@ razão legítima para o navegador produzir um. Quem escreve é
 ### Grafo
 
 `knowledge_relations` já é a tabela de arestas, com tipo e direção. Serve tanto à
-visualização (Etapa 13) quanto à expansão de contexto do RAG.
+visualização (Etapa 13) quanto à expansão de contexto do RAG — em uso desde a
+Etapa 12 via `listRelationsForKnowledge` (Etapa 6), sem nenhuma consulta nova.
 
 ## Segurança
 

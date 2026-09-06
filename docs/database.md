@@ -114,6 +114,11 @@ faz duas consultas em vez de uma por isso: uma por `from_id` embutindo o `to`,
 outra por `to_id` embutindo o `from`, cada uma com o alias `knowledge` para
 que as duas voltem no mesmo formato.
 
+Desde a Etapa 12, `listRelationsForKnowledge` também alimenta o RAG: os
+vizinhos dos conhecimentos mais bem ranqueados por `search()` entram no
+contexto da pergunta, sem nenhuma consulta nova — ver
+[ai.md](ai.md#onde-a-ia-entra).
+
 ### `projects` e `knowledge_projects`
 
 Um projeto é onde o conhecimento é aplicado. O vínculo com `knowledge` carrega

@@ -16,7 +16,7 @@ import { knowledgeFormSchema } from "@/features/knowledge/schemas";
 import { search } from "@/features/search/queries";
 import { listTags } from "@/features/tags/queries";
 import { requireUser } from "@/lib/auth/dal";
-import { AiBudgetExceededError, AiConfigError, AiError, AiRateLimitError } from "@/lib/ai/errors";
+import { describeAiError } from "@/lib/ai/errors";
 import { INBOX_STATUSES } from "@/lib/domain";
 import { formError, formSuccess, parseFormData, type FormState } from "@/lib/forms";
 import { ROUTES } from "@/lib/routes";
@@ -265,29 +265,10 @@ export async function processInboxItemAction(
 
 /** Most-specific-first, same chain `src/lib/ai/errors.ts` recommends catching. */
 function translateAiError(error: unknown): string {
-  if (error instanceof AiBudgetExceededError) {
-    return "Esta sugestão custaria mais do que o limite configurado. Tente reduzir o conteúdo, ou volte mais tarde.";
-  }
-
-  if (error instanceof AiRateLimitError) {
-    return "Muitas chamadas de IA em pouco tempo. Aguarde um instante e tente novamente.";
-  }
-
-  if (error instanceof AiConfigError) {
-    console.error("[inbox] AI misconfigured:", (error as Error).message);
-
-    return "A IA não está configurada neste ambiente.";
-  }
-
-  if (error instanceof AiError) {
-    console.error("[inbox] AI suggestion failed:", (error as Error).message);
-
-    return "Não foi possível gerar uma sugestão agora. Tente novamente.";
-  }
-
-  console.error("[inbox] AI suggestion failed unexpectedly:", error);
-
-  return "Não foi possível gerar uma sugestão agora. Tente novamente.";
+  return describeAiError(error, {
+    logPrefix: "[inbox]",
+    failureMessage: "Não foi possível gerar uma sugestão agora. Tente novamente.",
+  });
 }
 
 /**

@@ -141,6 +141,10 @@ Vitest, ambiente Node. A suíte cobre as funções puras e críticas:
   achado por duas listas supera um achado só por uma, e que o objeto da
   primeira ocorrência vence num empate (é isso que preserva `matchKind` real
   de um resultado de palavra-chave ao mesclar com o semântico).
+- `tests/search-rag.test.ts` — o empacotamento de candidatos do RAG até o
+  teto de tokens (pulando, não parando, num candidato grande demais), o
+  prompt rotulando o contexto como dado e não instrução, e o filtro que
+  descarta uma citação para um id nunca oferecido no contexto.
 - `tests/integration/rls.test.ts` — RLS pela API real (veja abaixo).
 
 ```bash

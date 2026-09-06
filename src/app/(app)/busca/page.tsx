@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/common/empty-state";
 import { PageHeader } from "@/components/common/page-header";
 import { listAreas } from "@/features/areas/queries";
 import { buildAreaTree, flattenAreaTree } from "@/features/areas/tree";
+import { AskVaultButton } from "@/features/search/components/ask-vault";
 import { SearchFilters } from "@/features/search/components/search-filters";
 import {
   FuzzyMatchNotice,
@@ -72,6 +73,12 @@ export default async function SearchPage({
           tags={tags.map((tag) => ({ id: tag.id, name: tag.name }))}
         />
       </Suspense>
+
+      {filters.q ? (
+        <div className="mb-6">
+          <AskVaultButton filters={filters} />
+        </div>
+      ) : null}
 
       {!isFiltered ? (
         <EmptyState

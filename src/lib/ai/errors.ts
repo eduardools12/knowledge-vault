@@ -50,3 +50,37 @@ export class AiProviderError extends AiError {
     this.name = "AiProviderError";
   }
 }
+
+/**
+ * Turns any of the above into the user-facing (Portuguese) message a Server
+ * Action should return, logging the ones worth investigating server-side
+ * along the way. Shared by every feature that calls the AI client — first
+ * `features/inbox/actions.ts` (Etapa 10), now `features/search/actions.ts`
+ * (Etapa 12) — because the chain to catch and the shape of the message is
+ * identical; only the failure-specific wording differs.
+ */
+export function describeAiError(error: unknown, options: { logPrefix: string; failureMessage: string }): string {
+  if (error instanceof AiBudgetExceededError) {
+    return "Isso custaria mais do que o limite configurado. Tente novamente com menos conteúdo, ou mais tarde.";
+  }
+
+  if (error instanceof AiRateLimitError) {
+    return "Muitas chamadas de IA em pouco tempo. Aguarde um instante e tente novamente.";
+  }
+
+  if (error instanceof AiConfigError) {
+    console.error(`${options.logPrefix} AI misconfigured:`, (error as Error).message);
+
+    return "A IA não está configurada neste ambiente.";
+  }
+
+  if (error instanceof AiError) {
+    console.error(`${options.logPrefix} AI call failed:`, (error as Error).message);
+
+    return options.failureMessage;
+  }
+
+  console.error(`${options.logPrefix} AI call failed unexpectedly:`, error);
+
+  return options.failureMessage;
+}
