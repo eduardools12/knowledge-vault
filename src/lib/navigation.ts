@@ -55,17 +55,17 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: "Acervo",
     items: [
-      { href: ROUTES.knowledge, label: "Conhecimentos", icon: LibraryBigIcon, stage: "Etapa 3" },
-      { href: ROUTES.sources, label: "Fontes", icon: BookMarkedIcon, stage: "Etapa 4" },
-      { href: ROUTES.areas, label: "Áreas", icon: BoxesIcon, stage: "Etapa 4" },
-      { href: ROUTES.tags, label: "Tags", icon: TagsIcon, stage: "Etapa 4" },
+      { href: ROUTES.knowledge, label: "Conhecimentos", icon: LibraryBigIcon },
+      { href: ROUTES.sources, label: "Fontes", icon: BookMarkedIcon },
+      { href: ROUTES.areas, label: "Áreas", icon: BoxesIcon },
+      { href: ROUTES.tags, label: "Tags", icon: TagsIcon },
     ],
   },
   {
     label: "Aplicação",
     items: [
       { href: ROUTES.projects, label: "Projetos", icon: FolderKanbanIcon },
-      { href: ROUTES.reviews, label: "Revisões", icon: RepeatIcon, stage: "Etapa 14" },
+      { href: ROUTES.reviews, label: "Revisões", icon: RepeatIcon },
       { href: ROUTES.graph, label: "Grafo", icon: NetworkIcon },
     ],
   },

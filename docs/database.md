@@ -145,6 +145,14 @@ Log append-only. É a fonte da verdade; os contadores em `knowledge` são cache
 mantidos pelo trigger `apply_review_to_knowledge`. Assim o histórico fica
 auditável e a página do conhecimento continua sendo uma leitura de uma linha.
 
+Escrita desde a Etapa 14 por `submitReviewAction`
+(`src/features/reviews/actions.ts`): cada uma das quatro avaliações da tela de
+revisão já é um par fixo de `difficulty`/`confidence` — ver
+[ai.md](ai.md#onde-a-ia-entra) para o porquê de não expor as duas escalas de
+1 a 5 como campos separados. `new_level` fica sempre `null`: a revisão registra
+como foi lembrar, não decide sozinha que o conhecimento amadureceu — mudar o
+`level` continua sendo uma edição explícita do conhecimento.
+
 ### `embeddings`
 
 Criada vazia na Etapa 1 — porque criar depois significaria re-embedar o

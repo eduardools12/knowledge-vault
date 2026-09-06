@@ -372,10 +372,44 @@ clique focando a vizinhança (com o seletor de profundidade e "Limpar foco"
 aparecendo), busca em largura alcançando exatamente os nós esperados a cada
 profundidade, e duplo clique abrindo o conhecimento correto.
 
-## Etapa 14 — Revisão
+## ✅ Etapa 14 — Revisão
 
-Repetição espaçada sobre a tabela `reviews`, fila do dia e perguntas geradas
-pela IA.
+- **`/revisoes`**: a fila do dia — conhecimentos `active` nunca revisados ou
+  com `next_review_at` vencido, mais antigos primeiro. `/revisoes/[id]`:
+  ler o conteúdo, tentar lembrar, avaliar com um de quatro botões
+  ("Esqueci" / "Difícil" / "Bom" / "Fácil", ao estilo Anki). Acessível
+  mesmo fora da fila — revisar adiantado é permitido e sinalizado, não
+  bloqueado.
+- **Agendamento sem IA**: `computeIntervalDays`
+  (`src/features/reviews/schedule.ts`, puro, testado) decide quantos dias até
+  a próxima revisão a partir de `review_count`, `difficulty` e `confidence` —
+  as colunas que o schema já tinha desde a Etapa 1. Confiança baixa
+  ("Esqueci"/"Difícil") agenda para amanhã, sempre, não importa o histórico;
+  confiança alta sobe uma escada de intervalos que dobra a cada acerto, até um
+  teto. Não é SM-2 — um SM-2 de verdade guarda um fator de facilidade por
+  conhecimento entre revisões, e não há coluna para isso; construir sobre o
+  que já existia custou zero migração.
+- **A única IA da etapa**: "Gerar perguntas para se testar", 2 a 5 perguntas
+  de recall ativo a partir do `content` do conhecimento, nunca com a resposta
+  junto — o objetivo é testar a memória, não dar algo para reconhecer.
+- **Duas reduções de escopo deliberadas**: quatro botões no lugar de dois
+  campos de 1 a 5 (mais rápido para revisar dezenas de cartões por dia, ainda
+  grava um `difficulty`/`confidence` de verdade); e a revisão nunca move o
+  `level` sozinha (`reviews.new_level` fica sempre `null`) — mudar a
+  maturidade continua sendo uma edição explícita do conhecimento.
+- 11 testes novos (260 no total) sobre `computeIntervalDays` (piso de
+  confiança baixa, crescimento com o histórico, teto da escada),
+  `computeNextReviewDate` e `isDueForReview`.
+
+Verificado no navegador com dados reais: item nunca revisado aparecendo na
+fila; página de revisão renderizando conteúdo, nível e os quatro botões;
+"Gerar perguntas" mostrando "A IA não está configurada neste ambiente" em vez
+de quebrar, sem chave da Anthropic disponível; avaliar com "Bom" gravando a
+linha em `reviews` com o par difficulty/confidence e o `next_review_at`
+corretos, o trigger `apply_review_to_knowledge` atualizando os contadores em
+`knowledge`, e o item saindo da fila depois. Revisão adiantada (antes do
+vencimento) testada separadamente: acessível, com o aviso correto, e
+ausente da fila do dia.
 
 ---
 

@@ -7,10 +7,11 @@
 > 11 indexou o acervo em vetores e tornou a busca híbrida — palavra-chave e
 > significado juntos. A Etapa 12 fechou o ciclo: perguntar ao acervo em
 > linguagem natural e receber uma resposta que cita o que usou, construída
-> sobre a busca híbrida e o grafo de relações já existentes. Este documento
-> registra a estratégia completa e o que já existe — no schema desde a Etapa
-> 1, na aplicação desde a Etapa 9 — para que a Etapa 14 (revisão) seja
-> construção sobre isso, não redesenho.
+> sobre a busca híbrida e o grafo de relações já existentes. A Etapa 14
+> encerrou as 14 etapas do roadmap com a última feature de IA: perguntas de
+> autoavaliação geradas do próprio conteúdo de um conhecimento, na tela de
+> revisão espaçada. Este documento registra a estratégia completa e o que já
+> existe — no schema desde a Etapa 1, na aplicação desde a Etapa 9.
 
 ## Princípio
 
@@ -165,9 +166,41 @@ Quatro decisões que valem registrar:
   cada citação é um link para o registro real, para o usuário conferir, não
   para confiar cegamente.
 
-**Etapa 14 — revisão**
+**✅ Etapa 14 — revisão**
 
-Gerar perguntas de revisão a partir do conteúdo e ajustar intervalos.
+Construído: a fila do dia em `/revisoes` (conhecimentos `active` sem
+`next_review_at` ou com um já vencido), a tela de revisão de um conhecimento
+por vez, e "Gerar perguntas para se testar" — a única peça de IA da etapa.
+Detalhes em [`src/features/reviews/`](../src/features/reviews/).
+
+O agendamento em si (quantos dias até a próxima revisão) não usa IA nenhuma —
+é aritmética pura em `src/features/reviews/schedule.ts`, sobre as colunas que
+o schema já tinha desde a Etapa 1 (`review_count`, `difficulty`, `confidence`).
+Não é SM-2: um SM-2 de verdade carrega um "fator de facilidade" por
+conhecimento entre revisões, e não há coluna para isso — construir sobre
+exatamente as colunas existentes custou zero migração, ao preço de uma curva
+mais simples.
+
+O que a IA faz é gerar, a partir do `content` do conhecimento, de 2 a 5
+perguntas de recall ativo — sem incluir a resposta, porque o objetivo é
+testar se a pessoa lembra sozinha, e reconhecer uma resposta já escrita não é
+a mesma coisa que recuperá-la da memória. Structured output de novo:
+`{questions: string[]}`, nunca um bloco de texto para a interface tentar
+separar em itens.
+
+Duas reduções de escopo deliberadas:
+
+- **Quatro botões, não dois campos de 1 a 5.** O schema pede `difficulty` e
+  `confidence` como números independentes, mas escolher os dois a cada cartão
+  — dezenas por dia, no caso de uso real — custa mais atenção do que vale.
+  "Esqueci" / "Difícil" / "Bom" / "Fácil" (o mesmo modelo de botões do Anki)
+  cada um mapeia para um par fixo desses dois números; a coluna continua
+  guardando um valor de verdade, só que escolhido em lote pelo rótulo, não
+  digitado.
+- **Revisão nunca move o `level` sozinha.** `reviews.new_level` fica sempre
+  `null` — avaliar como foi lembrar e decidir que um conhecimento amadureceu
+  são dois julgamentos diferentes, e o segundo continua sendo uma edição
+  explícita do conhecimento, não um efeito colateral de clicar "Fácil".
 
 ## O que já existe na aplicação
 

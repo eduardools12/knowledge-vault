@@ -149,6 +149,10 @@ Vitest, ambiente Node. A suíte cobre as funções puras e críticas:
   da busca em largura por profundidade (tratando uma relação como não-
   direcional), e os dois fallbacks que evitam uma página em branco por causa
   de um `center` obsoleto na URL.
+- `tests/reviews-schedule.test.ts` — o piso de intervalo em confiança baixa
+  (sempre amanhã, não importa o histórico), o crescimento do intervalo com
+  `review_count`, o teto da escada de dias, e `isDueForReview` para os dois
+  casos que contam como vencido (nunca revisado, ou revisado no passado).
 - `tests/integration/rls.test.ts` — RLS pela API real (veja abaixo).
 
 ```bash

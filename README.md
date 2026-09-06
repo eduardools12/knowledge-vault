@@ -12,29 +12,35 @@ capturar → organizar → compreender → relacionar → consultar → aplicar
 
 ## Estado atual
 
-**Etapas 1 a 13 concluídas** — arquitetura, banco, autenticação, casca da
-aplicação, dashboard, CRUD de conhecimentos com editor rico, áreas, tags e
-fontes com upload de arquivo, a Inbox de captura rápida com fila de
-processamento, relacionamentos entre conhecimentos, projetos com vínculo a
-conhecimentos, busca global ranqueada com fallback trigram, a fundação de
-acesso a IA, sugestão de título/resumo/nível/área/tags ao transformar um item
-da Inbox em conhecimento, busca híbrida — todo conhecimento e fonte é
-indexado em vetores automaticamente e `/busca` combina palavra-chave com
-significado — RAG: um botão "Perguntar à IA" na própria busca, que responde
-citando os conhecimentos e fontes realmente usados, com expansão de contexto
-pelo grafo de relações — e `/grafo`: o acervo como rede interativa, com
-filtro por área e por profundidade a partir de um nó focado — tudo verificado
-ponta a ponta.
+**As 14 etapas do roadmap estão concluídas.** Arquitetura, banco,
+autenticação, casca da aplicação, dashboard, CRUD de conhecimentos com editor
+rico, áreas, tags e fontes com upload de arquivo, a Inbox de captura rápida
+com fila de processamento, relacionamentos entre conhecimentos, projetos com
+vínculo a conhecimentos, busca global ranqueada com fallback trigram, a
+fundação de acesso a IA, sugestão de título/resumo/nível/área/tags ao
+transformar um item da Inbox em conhecimento, busca híbrida — todo
+conhecimento e fonte é indexado em vetores automaticamente e `/busca` combina
+palavra-chave com significado —, RAG (um botão "Perguntar à IA" na própria
+busca, que responde citando os conhecimentos e fontes realmente usados, com
+expansão de contexto pelo grafo de relações), `/grafo` (o acervo como rede
+interativa, com filtro por área e por profundidade a partir de um nó
+focado), e `/revisoes` (repetição espaçada sobre o histórico de revisões,
+fila do dia, e perguntas de autoavaliação geradas do próprio conteúdo) — tudo
+verificado ponta a ponta.
 
-O banco já contempla o produto inteiro (grafo, revisão espaçada, embeddings,
-projetos), mesmo que a interface ainda cubra pouco dele. Isso é intencional:
-mudar schema depois que existem dados é caro; mudar tela é barato.
+O banco já contemplava o produto inteiro desde a Etapa 1 (grafo, revisão
+espaçada, embeddings, projetos), antes de a interface cobrir qualquer parte
+disso — de propósito: mudar schema depois que existem dados é caro; mudar
+tela é barato. Nenhuma etapa depois da primeira precisou de uma migração só
+para acrescentar uma coluna que já devia estar lá.
 
-As dez seções da sidebar já existem como rota. As que ainda não foram
-construídas dizem em qual etapa entram e o que vão permitir — uma seção honesta
-sobre estar inacabada confunde menos do que uma que parece quebrada.
+Nove seções da sidebar têm página própria; **Configurações** continua sendo o
+único placeholder deliberado, dizendo o que vai fazer quando chegar sua vez —
+uma seção honesta sobre estar inacabada confunde menos do que uma que parece
+quebrada.
 
-Veja [docs/roadmap.md](docs/roadmap.md) para as 14 etapas.
+Veja [docs/roadmap.md](docs/roadmap.md) para as 14 etapas, cada uma com o que
+foi construído e como foi verificada.
 
 ## Stack
 
@@ -138,7 +144,8 @@ src/
 │   ├── relations/         Arestas do grafo entre conhecimentos, com direção e tipo
 │   ├── projects/          CRUD de projetos e vínculo com conhecimentos, com nota por par
 │   ├── search/            Busca híbrida (palavra-chave + semântica) e RAG ("Perguntar à IA"), com filtros combinados e fallback trigram
-│   └── graph/             Visualização interativa das relações, com filtro por área e profundidade
+│   ├── graph/             Visualização interativa das relações, com filtro por área e profundidade
+│   └── reviews/           Fila de revisão espaçada, agendamento e perguntas de autoavaliação por IA
 ├── lib/
 │   ├── auth/dal.ts        Data Access Layer — checagem autoritativa de sessão
 │   ├── ai/                Acesso a LLM: provedor, custo, erro e limite de taxa
