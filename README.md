@@ -12,7 +12,7 @@ capturar → organizar → compreender → relacionar → consultar → aplicar
 
 ## Estado atual
 
-**Etapas 1 a 12 concluídas** — arquitetura, banco, autenticação, casca da
+**Etapas 1 a 13 concluídas** — arquitetura, banco, autenticação, casca da
 aplicação, dashboard, CRUD de conhecimentos com editor rico, áreas, tags e
 fontes com upload de arquivo, a Inbox de captura rápida com fila de
 processamento, relacionamentos entre conhecimentos, projetos com vínculo a
@@ -20,9 +20,11 @@ conhecimentos, busca global ranqueada com fallback trigram, a fundação de
 acesso a IA, sugestão de título/resumo/nível/área/tags ao transformar um item
 da Inbox em conhecimento, busca híbrida — todo conhecimento e fonte é
 indexado em vetores automaticamente e `/busca` combina palavra-chave com
-significado — e RAG: um botão "Perguntar à IA" na própria busca, que responde
+significado — RAG: um botão "Perguntar à IA" na própria busca, que responde
 citando os conhecimentos e fontes realmente usados, com expansão de contexto
-pelo grafo de relações — tudo verificado ponta a ponta.
+pelo grafo de relações — e `/grafo`: o acervo como rede interativa, com
+filtro por área e por profundidade a partir de um nó focado — tudo verificado
+ponta a ponta.
 
 O banco já contempla o produto inteiro (grafo, revisão espaçada, embeddings,
 projetos), mesmo que a interface ainda cubra pouco dele. Isso é intencional:
@@ -47,6 +49,7 @@ Veja [docs/roadmap.md](docs/roadmap.md) para as 14 etapas.
 | Arquivos | Supabase Storage (bucket privado) |
 | Busca | Híbrida: `tsvector` + `pg_trgm` (palavra-chave) e `pgvector` (semântica), combinadas com Reciprocal Rank Fusion |
 | Embeddings | OpenAI `text-embedding-3-small`, indexado por fila (Vercel Cron) |
+| Grafo | `reagraph` (WebGL via Three.js), layout de força |
 | Testes | Vitest |
 | Deploy | Vercel |
 
@@ -134,7 +137,8 @@ src/
 │   ├── inbox/             Captura rápida, fila de estados, transformação em conhecimento e sugestão por IA
 │   ├── relations/         Arestas do grafo entre conhecimentos, com direção e tipo
 │   ├── projects/          CRUD de projetos e vínculo com conhecimentos, com nota por par
-│   └── search/            Busca híbrida (palavra-chave + semântica) e RAG ("Perguntar à IA"), com filtros combinados e fallback trigram
+│   ├── search/            Busca híbrida (palavra-chave + semântica) e RAG ("Perguntar à IA"), com filtros combinados e fallback trigram
+│   └── graph/             Visualização interativa das relações, com filtro por área e profundidade
 ├── lib/
 │   ├── auth/dal.ts        Data Access Layer — checagem autoritativa de sessão
 │   ├── ai/                Acesso a LLM: provedor, custo, erro e limite de taxa

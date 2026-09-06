@@ -145,6 +145,10 @@ Vitest, ambiente Node. A suíte cobre as funções puras e críticas:
   teto de tokens (pulando, não parando, num candidato grande demais), o
   prompt rotulando o contexto como dado e não instrução, e o filtro que
   descarta uma citação para um id nunca oferecido no contexto.
+- `tests/graph-filter.test.ts` — o filtro por área do grafo, o alcance exato
+  da busca em largura por profundidade (tratando uma relação como não-
+  direcional), e os dois fallbacks que evitam uma página em branco por causa
+  de um `center` obsoleto na URL.
 - `tests/integration/rls.test.ts` — RLS pela API real (veja abaixo).
 
 ```bash
@@ -222,6 +226,24 @@ comentário no arquivo explica o caso.
 **Guard de hidratação para tema costuma ser desnecessário.** O conteúdo de menus
 e sheets só é montado quando abertos, ou seja, sempre depois da hidratação. Ler
 `useTheme()` ali dentro não gera mismatch e dispensa o `mounted` habitual.
+
+## Notas sobre reagraph (Etapa 13)
+
+O grafo (`/grafo`) renderiza através de `@react-three/fiber` (Three.js/WebGL),
+não DOM comum. Dois pontos que só apareceram construindo:
+
+**`ssr: false` é obrigatório, não uma otimização.** Uma cena Three.js não tem
+como renderizar no servidor — o componente que importa `reagraph`
+(`graph-canvas-inner.tsx`) só é carregado via
+`next/dynamic(..., { ssr: false })`, a partir de um arquivo `"use client"`
+(`knowledge-graph.tsx`). `ssr: false` só é aceito dentro de um Client
+Component; um Server Component que tente isso falha o build.
+
+**O container precisa de `position: relative` explícito.** O `Canvas` do
+`@react-three/fiber` se dimensiona a `100%` do ancestral posicionado mais
+próximo. Sem um `relative` na div que envolve o canvas, essa resolução cai
+para o viewport inteiro e o grafo cobre a página por cima de tudo, sidebar
+inclusa — descoberto ao ver exatamente isso acontecer no navegador.
 
 ## Deploy (Vercel)
 

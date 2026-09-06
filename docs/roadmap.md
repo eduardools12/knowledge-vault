@@ -332,10 +332,45 @@ clique em "Perguntar à IA" percorreu toda a cadeia (busca → candidatos →
 `completeStructuredWithAi` → tradução de erro → UI) e mostrou "A IA não está
 configurada neste ambiente" em vez de quebrar a página.
 
-## Etapa 13 — Knowledge Graph
+## ✅ Etapa 13 — Knowledge Graph
 
-Visualização interativa das relações, com filtro por área e profundidade.
-Biblioteca de grafo escolhida só aqui — não antes.
+- **`/grafo`**: o acervo como rede — um nó por conhecimento, uma aresta por
+  relação (`knowledge_relations`, Etapa 6). Clique num nó foca a vizinhança;
+  duplo clique abre o conhecimento. Nó maior = mais conectado
+  (`sizingType="centrality"`); cor do nó = cor da área, quando tem uma.
+- **Biblioteca escolhida agora**: [`reagraph`](https://github.com/reaviz/reagraph)
+  (WebGL via Three.js/`@react-three/fiber`), entre as opções ativamente
+  mantidas em 2026 (`react-force-graph`, `cytoscape`, `@xyflow/react`,
+  `sigma`) — a única pensada para "rede React declarativa com layout de força
+  pronto", em vez de exigir integrar `d3-force` à mão ou adaptar uma
+  biblioteca de diagramas de fluxo para algo que não é uma árvore.
+- **Filtro por área e por profundidade**, os dois exigidos pelo roadmap:
+  área simplesmente restringe quais conhecimentos entram no grafo; a
+  profundidade só aparece depois de um nó virar foco (clicando nele, não por
+  um campo de formulário) e limita a vizinhança a até 3 saltos, contados sem
+  direção — uma aresta "depende de" ainda conta como 1 salto de distância,
+  em qualquer sentido.
+- **Tudo em memória, nada em SQL.** `filterGraphData` (puro, testado) faz a
+  filtragem por área e a busca em largura por profundidade depois que
+  `listGraphData()` traz o grafo inteiro do usuário de uma vez — o acervo de
+  uma pessoa cabe confortavelmente em memória, ao contrário do que exigiu
+  `search_knowledge`/`search_knowledge_semantic` no banco.
+- **Achado construindo**: o canvas do `reagraph` cobria a página inteira até
+  o container receber `position: relative` explícito — o `Canvas` do
+  `@react-three/fiber` se dimensiona a 100% do ancestral posicionado mais
+  próximo, e sem isso essa resolução cai para o viewport. Registrado em
+  docs/development.md para a próxima vez que uma tela usar Three.js.
+- 13 testes novos (249 no total) sobre `filterGraphData`: filtro de área,
+  alcance exato por profundidade, aresta tratada como não-direcional, e
+  os dois casos de fallback (centro inexistente, centro excluído pelo
+  próprio filtro de área) que evitam uma página em branco por causa de um
+  `center` obsoleto na URL.
+
+Verificado no navegador com dados reais: grafo renderizando com cor por área
+e tamanho por centralidade, filtro de área restringindo os nós visíveis,
+clique focando a vizinhança (com o seletor de profundidade e "Limpar foco"
+aparecendo), busca em largura alcançando exatamente os nós esperados a cada
+profundidade, e duplo clique abrindo o conhecimento correto.
 
 ## Etapa 14 — Revisão
 

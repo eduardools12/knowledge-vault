@@ -119,6 +119,13 @@ vizinhos dos conhecimentos mais bem ranqueados por `search()` entram no
 contexto da pergunta, sem nenhuma consulta nova — ver
 [ai.md](ai.md#onde-a-ia-entra).
 
+A Etapa 13 lê a tabela direto, sem esse helper: `listGraphData()`
+(`src/features/graph/queries.ts`) traz todas as arestas do usuário de uma vez
+só, e a filtragem por área e por profundidade a partir de um nó focado
+acontece em memória, em `filterGraphData` — o acervo de uma pessoa é pequeno
+o bastante para isso ser mais simples que consultar o banco a cada mudança de
+filtro.
+
 ### `projects` e `knowledge_projects`
 
 Um projeto é onde o conhecimento é aplicado. O vínculo com `knowledge` carrega

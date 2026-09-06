@@ -66,7 +66,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: ROUTES.projects, label: "Projetos", icon: FolderKanbanIcon },
       { href: ROUTES.reviews, label: "Revisões", icon: RepeatIcon, stage: "Etapa 14" },
-      { href: ROUTES.graph, label: "Grafo", icon: NetworkIcon, stage: "Etapa 13" },
+      { href: ROUTES.graph, label: "Grafo", icon: NetworkIcon },
     ],
   },
   {
